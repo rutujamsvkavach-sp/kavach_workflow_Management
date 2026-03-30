@@ -7,6 +7,7 @@ import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
 
+import { connectDatabase } from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import dataRoutes from "./routes/dataRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
@@ -63,6 +64,17 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 const port = Number(process.env.PORT) || 5000;
-app.listen(port, () => {
-  console.log(`kavach_workflow Management backend listening on port ${port}`);
-});
+
+const startServer = async () => {
+  try {
+    await connectDatabase();
+    app.listen(port, () => {
+      console.log(`kavach_workflow Management backend listening on port ${port}`);
+    });
+  } catch (error) {
+    console.error("Failed to connect to MongoDB.", error);
+    process.exit(1);
+  }
+};
+
+startServer();

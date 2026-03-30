@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
-
-import { findRowByColumn, sheetNames } from "../services/googleSheets.js";
+import User from "../models/User.js";
 
 export const authenticate = async (req, _res, next) => {
   try {
@@ -14,7 +13,7 @@ export const authenticate = async (req, _res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await findRowByColumn(sheetNames.users, "id", decoded.userId);
+    const user = await User.findById(decoded.userId).lean();
 
     if (!user) {
       const error = new Error("User not found.");
@@ -23,7 +22,7 @@ export const authenticate = async (req, _res, next) => {
     }
 
     req.user = {
-      id: user.id,
+      id: String(user._id),
       name: user.name,
       email: user.email,
       role: user.role,

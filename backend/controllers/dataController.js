@@ -1,6 +1,5 @@
 import { body, param, query } from "express-validator";
-import { appendRow, deleteRowById, getAllRows, sheetNames, updateRowById } from "../services/googleSheets.js";
-import { v4 as uuidv4 } from "uuid";
+import DepartmentRecord from "../models/DepartmentRecord.js";
 
 const toFileUrlString = (value) => {
   if (Array.isArray(value)) {
@@ -43,29 +42,36 @@ export const dataQueryValidation = [
 export const getData = async (req, res, next) => {
   try {
     const { department, search } = req.query;
-    const rows = await getAllRows(sheetNames.departments);
+    const queryFilter = {};
 
-    const filtered = rows
-      .map(({ _rowNumber, ...row }) => ({
-        ...row,
-        files: parseFiles(row.fileUrl),
-      }))
-      .filter((row) => {
-        const departmentMatch = department ? row.department === department : true;
-        const searchTerm = String(search || "").toLowerCase();
-        const searchMatch = searchTerm
-          ? [row.department, row.title, row.description, row.createdBy].some((field) =>
-              String(field || "").toLowerCase().includes(searchTerm)
-            )
-          : true;
+    if (department) {
+      queryFilter.department = department;
+    }
 
-        if (req.user.role === "staff") {
-          return departmentMatch && searchMatch && row.createdBy === req.user.name;
-        }
+    if (search) {
+      queryFilter.$or = [
+        { department: { $regex: search, $options: "i" } },
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { createdBy: { $regex: search, $options: "i" } },
+      ];
+    }
 
-        return departmentMatch && searchMatch;
-      })
-      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+    if (req.user.role === "staff") {
+      queryFilter.createdByUserId = req.user.id;
+    }
+
+    const rows = await DepartmentRecord.find(queryFilter).sort({ createdAt: -1 }).lean();
+    const filtered = rows.map((row) => ({
+      id: String(row._id),
+      department: row.department,
+      title: row.title,
+      description: row.description,
+      fileUrl: row.fileUrl,
+      files: parseFiles(row.fileUrl),
+      createdBy: row.createdBy,
+      createdAt: row.createdAt,
+    }));
 
     res.json({
       success: true,
@@ -78,23 +84,20 @@ export const getData = async (req, res, next) => {
 
 export const createData = async (req, res, next) => {
   try {
-    const record = {
-      id: uuidv4(),
+    const record = await DepartmentRecord.create({
       department: req.body.department,
       title: req.body.title,
       description: req.body.description,
-      fileUrl: toFileUrlString(req.body.fileUrl),
+      fileUrl: Array.isArray(req.body.fileUrl) ? req.body.fileUrl.filter(Boolean) : parseFiles(req.body.fileUrl),
       createdBy: req.user.name,
-      createdAt: new Date().toISOString(),
-    };
-
-    await appendRow(sheetNames.departments, record);
+      createdByUserId: req.user.id,
+    });
 
     res.status(201).json({
       success: true,
       message: "Record created successfully.",
       data: {
-        id: record.id,
+        id: String(record._id),
         department: record.department,
         title: record.title,
         description: record.description,
@@ -111,8 +114,7 @@ export const createData = async (req, res, next) => {
 
 export const updateData = async (req, res, next) => {
   try {
-    const rows = await getAllRows(sheetNames.departments);
-    const existing = rows.find((row) => row.id === req.params.id);
+    const existing = await DepartmentRecord.findById(req.params.id).lean();
 
     if (!existing) {
       const error = new Error("Record not found.");
@@ -120,18 +122,22 @@ export const updateData = async (req, res, next) => {
       throw error;
     }
 
-    if (req.user.role !== "admin" && existing.createdBy !== req.user.name) {
+    if (req.user.role !== "admin" && String(existing.createdByUserId) !== req.user.id) {
       const error = new Error("You can only update records created by you.");
       error.statusCode = 403;
       throw error;
     }
 
-    const updated = await updateRowById(sheetNames.departments, req.params.id, {
-      department: req.body.department,
-      title: req.body.title,
-      description: req.body.description,
-      fileUrl: toFileUrlString(req.body.fileUrl),
-    });
+    const updated = await DepartmentRecord.findByIdAndUpdate(
+      req.params.id,
+      {
+        department: req.body.department,
+        title: req.body.title,
+        description: req.body.description,
+        fileUrl: Array.isArray(req.body.fileUrl) ? req.body.fileUrl.filter(Boolean) : parseFiles(req.body.fileUrl),
+      },
+      { new: true, runValidators: true }
+    ).lean();
 
     if (!updated) {
       const error = new Error("Record not found.");
@@ -143,7 +149,7 @@ export const updateData = async (req, res, next) => {
       success: true,
       message: "Record updated successfully.",
       data: {
-        id: updated.id,
+        id: String(updated._id),
         department: updated.department,
         title: updated.title,
         description: updated.description,
@@ -160,7 +166,7 @@ export const updateData = async (req, res, next) => {
 
 export const deleteData = async (req, res, next) => {
   try {
-    const deleted = await deleteRowById(sheetNames.departments, req.params.id);
+    const deleted = await DepartmentRecord.findByIdAndDelete(req.params.id).lean();
 
     if (!deleted) {
       const error = new Error("Record not found.");

@@ -1,9 +1,7 @@
 import bcrypt from "bcryptjs";
 import { body } from "express-validator";
-
-import { appendRow, findRowByColumn, getAllRows, sheetNames, updateRowById } from "../services/googleSheets.js";
+import User from "../models/User.js";
 import { generateToken } from "../utils/auth.js";
-import { v4 as uuidv4 } from "uuid";
 
 export const registerValidation = [
   body("name").trim().isLength({ min: 2 }).withMessage("Name must be at least 2 characters."),
@@ -33,7 +31,8 @@ export const approvalValidation = [
 export const register = async (req, res, next) => {
   try {
     const { name, email, password, role = "staff", adminSecret } = req.body;
-    const existing = await findRowByColumn(sheetNames.users, "email", email);
+    const normalizedEmail = String(email).toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail }).lean();
 
     if (existing) {
       const error = new Error("A user with this email already exists.");
@@ -48,16 +47,13 @@ export const register = async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    const user = {
-      id: uuidv4(),
+    const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role,
-      approved: "true",
-    };
-
-    await appendRow(sheetNames.users, user);
+      approved: true,
+    });
 
     res.status(201).json({
       success: true,
@@ -65,7 +61,7 @@ export const register = async (req, res, next) => {
       data: {
         token: generateToken(user),
         user: {
-          id: user.id,
+          id: String(user._id),
           name: user.name,
           email: user.email,
           role: user.role,
@@ -81,7 +77,8 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const user = await findRowByColumn(sheetNames.users, "email", email);
+    const normalizedEmail = String(email).toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       const error = new Error("Invalid email or password.");
@@ -97,7 +94,7 @@ export const login = async (req, res, next) => {
       throw error;
     }
 
-    if (String(user.approved).toLowerCase() !== "true") {
+    if (!user.approved) {
       const error = new Error("Your account is pending approval.");
       error.statusCode = 403;
       throw error;
@@ -109,7 +106,7 @@ export const login = async (req, res, next) => {
       data: {
         token: generateToken(user),
         user: {
-          id: user.id,
+          id: String(user._id),
           name: user.name,
           email: user.email,
           role: user.role,
@@ -124,12 +121,12 @@ export const login = async (req, res, next) => {
 
 export const getUsers = async (_req, res, next) => {
   try {
-    const users = await getAllRows(sheetNames.users);
+    const users = await User.find().sort({ createdAt: -1 }).lean();
     res.json({
       success: true,
-      data: users.map(({ password, _rowNumber, ...user }) => ({
+      data: users.map(({ password, _id, ...user }) => ({
+        id: String(_id),
         ...user,
-        approved: String(user.approved).toLowerCase() === "true",
       })),
     });
   } catch (error) {
@@ -139,10 +136,14 @@ export const getUsers = async (_req, res, next) => {
 
 export const updateUserApproval = async (req, res, next) => {
   try {
-    const updated = await updateRowById(sheetNames.users, req.params.id, {
-      approved: String(req.body.approved),
-      role: req.body.role,
-    });
+    const updated = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        approved: req.body.approved,
+        ...(req.body.role ? { role: req.body.role } : {}),
+      },
+      { new: true, runValidators: true }
+    ).lean();
 
     if (!updated) {
       const error = new Error("User not found.");
@@ -154,11 +155,11 @@ export const updateUserApproval = async (req, res, next) => {
       success: true,
       message: "User updated successfully.",
       data: {
-        id: updated.id,
+        id: String(updated._id),
         name: updated.name,
         email: updated.email,
         role: updated.role,
-        approved: String(updated.approved).toLowerCase() === "true",
+        approved: updated.approved,
       },
     });
   } catch (error) {

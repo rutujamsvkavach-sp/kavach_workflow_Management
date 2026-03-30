@@ -1,12 +1,12 @@
 # kavach_workflow Management - Indian Railway Workflow Management System
 
-Production-ready full-stack workflow management platform for Indian Railway departments, built with React, Tailwind CSS, Node.js, Express, JWT authentication, Google Sheets data storage, and secure file uploads.
+Production-ready full-stack workflow management platform for Indian Railway departments, built with React, Tailwind CSS, Node.js, Express, JWT authentication, MongoDB Atlas data storage, and secure file uploads.
 
 ## Features
 
 - JWT authentication with bcrypt password hashing
 - Role-based access for `admin` and `staff`
-- Google Sheets-powered CRUD operations
+- MongoDB Atlas-powered CRUD operations
 - Department workflow modules
 - Secure PDF, Excel, and image uploads using multer
 - Responsive government dashboard UI
@@ -35,35 +35,18 @@ Task Management WebSite/
       App.jsx
 ```
 
-## Google Sheets Setup
+## MongoDB Atlas Setup
 
-Use this spreadsheet as the company database:
+Create a MongoDB Atlas cluster, then:
 
-[Company Google Sheet](https://docs.google.com/spreadsheets/d/1rx1dR0_4YsnsW7qLywoAurFwzBZ40X0uv_0SR85zw9E/edit?gid=1662995955#gid=1662995955)
-
-Create or maintain these tabs:
-
-### `USERS`
-
-Headers:
-
-```text
-id | name | email | password | role | approved
-```
-
-### `DEPARTMENTS`
-
-Headers:
-
-```text
-id | department | title | description | fileUrl | createdBy | createdAt
-```
+1. Create a database user with read/write access.
+2. Add network access for your deployment environment, or use `0.0.0.0/0` for broad access.
+3. Copy your connection string and set it as `MONGODB_URI`.
 
 ## Backend Setup
 
 1. Go to [backend/.env.example](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/backend/.env.example) and copy it to `.env`.
-2. Set `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY`, and update `ADMIN_REGISTRATION_SECRET` if needed.
-3. Share the sheet with the Google service account email as `Editor`.
+2. Set `MONGODB_URI` and update `ADMIN_REGISTRATION_SECRET` if needed.
 4. Run:
 
 ```bash
@@ -91,7 +74,7 @@ Frontend runs on `http://localhost:5173`.
 
 - Uploaded files are stored locally in [backend/uploads](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/backend/uploads) for local development.
 - For public deployment, use Cloudinary by setting `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in backend env variables.
-- File URLs are stored in Google Sheets in the `fileUrl` field as a JSON array string.
+- File URLs are stored in MongoDB in the `fileUrl` array field.
 - Admin registration secret is currently set to `KavachAdmin@2026` in [backend/.env](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/backend/.env).
 
 ## Deploy For Staff Access
@@ -126,7 +109,6 @@ node server.js
 
 5. Add backend environment variables from [backend/.env.example](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/backend/.env.example).
 6. Set `CLIENT_URLS` to include your Vercel domain.
-7. Share the Google Sheet with the service account email as `Editor`.
 
 Optional:
 - Use [render.yaml](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/render.yaml) for Render blueprint-based setup.
