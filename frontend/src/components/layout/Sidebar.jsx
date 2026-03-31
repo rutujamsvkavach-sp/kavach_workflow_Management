@@ -49,6 +49,7 @@ const Sidebar = ({ open, onToggle, user }) => {
             </div>
             <div>
               <p className="text-sm font-semibold">{user?.name}</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">{user?.staffId || "No ID"}</p>
               <p className="text-xs uppercase tracking-[0.25em] text-white/50">{user?.role}</p>
             </div>
           </div>

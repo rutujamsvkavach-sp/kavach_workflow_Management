@@ -23,6 +23,7 @@ export const authenticate = async (req, _res, next) => {
 
     req.user = {
       id: String(user._id),
+      staffId: user.staffId,
       name: user.name,
       email: user.email,
       role: user.role,

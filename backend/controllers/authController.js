@@ -3,6 +3,42 @@ import { body } from "express-validator";
 import User from "../models/User.js";
 import { generateToken } from "../utils/auth.js";
 
+const buildStaffIdBase = (name) => {
+  const cleaned = String(name || "")
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const combined = cleaned.join("").slice(0, 6);
+
+  if (combined) {
+    return combined.padEnd(3, "X");
+  }
+
+  return "USER";
+};
+
+const generateUniqueStaffId = async (name) => {
+  const base = buildStaffIdBase(name);
+  const existing = await User.countDocuments({
+    staffId: { $regex: `^${base}-`, $options: "i" },
+  });
+
+  return `${base}-${String(existing + 1).padStart(4, "0")}`;
+};
+
+const ensureStaffId = async (user) => {
+  if (user.staffId) {
+    return user.staffId;
+  }
+
+  const staffId = await generateUniqueStaffId(user.name);
+  user.staffId = staffId;
+  await user.save();
+  return staffId;
+};
+
 export const registerValidation = [
   body("name").trim().isLength({ min: 2 }).withMessage("Name must be at least 2 characters."),
   body("email").isEmail().withMessage("Valid email is required.").normalizeEmail(),
@@ -47,9 +83,11 @@ export const register = async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const staffId = await generateUniqueStaffId(name);
     const user = await User.create({
       name,
       email: normalizedEmail,
+      staffId,
       password: hashedPassword,
       role,
       approved: true,
@@ -62,6 +100,7 @@ export const register = async (req, res, next) => {
         token: generateToken(user),
         user: {
           id: String(user._id),
+          staffId: user.staffId,
           name: user.name,
           email: user.email,
           role: user.role,
@@ -100,6 +139,8 @@ export const login = async (req, res, next) => {
       throw error;
     }
 
+    const staffId = await ensureStaffId(user);
+
     res.json({
       success: true,
       message: "Login successful.",
@@ -107,6 +148,7 @@ export const login = async (req, res, next) => {
         token: generateToken(user),
         user: {
           id: String(user._id),
+          staffId,
           name: user.name,
           email: user.email,
           role: user.role,
@@ -121,13 +163,18 @@ export const login = async (req, res, next) => {
 
 export const getUsers = async (_req, res, next) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 }).lean();
+    const users = await User.find().sort({ createdAt: -1 });
+    await Promise.all(users.map((user) => ensureStaffId(user)));
+
     res.json({
       success: true,
-      data: users.map(({ password, _id, ...user }) => ({
-        id: String(_id),
-        ...user,
-      })),
+      data: users.map((user) => {
+        const { password, _id, ...safeUser } = user.toObject();
+        return {
+          id: String(_id),
+          ...safeUser,
+        };
+      }),
     });
   } catch (error) {
     next(error);
@@ -156,6 +203,7 @@ export const updateUserApproval = async (req, res, next) => {
       message: "User updated successfully.",
       data: {
         id: String(updated._id),
+        staffId: updated.staffId,
         name: updated.name,
         email: updated.email,
         role: updated.role,

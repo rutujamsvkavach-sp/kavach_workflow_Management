@@ -14,6 +14,13 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    staffId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      uppercase: true,
+      trim: true,
+    },
     password: {
       type: String,
       required: true,

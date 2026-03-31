@@ -9,6 +9,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { departments } from "../constants/departments";
 import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
+import { matchesSearch } from "../utils/search";
 
 const DashboardPage = () => {
   const [records, setRecords] = useState([]);
@@ -34,11 +35,15 @@ const DashboardPage = () => {
   }, []);
 
   const visibleRecords = useMemo(() => {
-    const query = search.toLowerCase();
     return records.filter((record) =>
-      [record.title, record.department, record.description, record.createdBy].some((item) =>
-        String(item).toLowerCase().includes(query)
-      )
+      matchesSearch(search, [
+        record.title,
+        record.department,
+        record.description,
+        record.createdBy,
+        record.anonymous ? "anonymous" : "",
+        ...(record.files || []),
+      ])
     );
   }, [records, search]);
 
@@ -48,7 +53,11 @@ const DashboardPage = () => {
   }));
 
   return (
-    <AppShell searchValue={search} onSearchChange={setSearch}>
+    <AppShell
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Search departments, records, creators, files, and anonymous submissions..."
+    >
       <PageHeader
         eyebrow="Overview"
         title="Railway Workflow Dashboard"
@@ -65,6 +74,13 @@ const DashboardPage = () => {
             <StatCard label="Departments" value={departments.length} hint="Configured workflow divisions" accent="accent" />
             <StatCard label="Role Access" value={user.role === "admin" ? "Admin" : "Staff"} hint="Current access profile" />
           </div>
+
+          {search ? (
+            <div className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-slate-500 shadow-soft">
+              Found <span className="font-semibold text-body">{visibleRecords.length}</span> matching records for{" "}
+              <span className="font-semibold text-primary">"{search}"</span>.
+            </div>
+          ) : null}
 
           <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
             <div className="rounded-lg border border-border bg-card p-6 shadow-soft">
@@ -93,6 +109,7 @@ const DashboardPage = () => {
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
                       <span>Created By: {record.createdBy}</span>
+                      {record.anonymous ? <span>Anonymous Submission</span> : null}
                       <span>Files: {record.files?.length || 0}</span>
                     </div>
                   </div>

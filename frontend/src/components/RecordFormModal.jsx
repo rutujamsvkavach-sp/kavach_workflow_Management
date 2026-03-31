@@ -10,6 +10,7 @@ const defaultState = {
   title: "",
   description: "",
   fileUrl: [],
+  anonymous: false,
 };
 
 const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment }) => {
@@ -23,6 +24,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
         title: record.title,
         description: record.description,
         fileUrl: record.files || [],
+        anonymous: Boolean(record.anonymous),
       });
       return;
     }
@@ -123,6 +125,21 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
               className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
               placeholder="Describe the workflow update, progress, dependencies, and next action."
             />
+          </label>
+
+          <label className="flex items-start gap-3 rounded-lg border border-border bg-slate-50 px-4 py-4 text-sm font-medium text-body">
+            <input
+              type="checkbox"
+              checked={form.anonymous}
+              onChange={(event) => setForm((current) => ({ ...current, anonymous: event.target.checked }))}
+              className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+            />
+            <span>
+              <span className="block font-semibold">Post as anonymous</span>
+              <span className="mt-1 block text-sm font-normal text-slate-500">
+                Hide your name from the dashboard and department tables while keeping internal ownership secure.
+              </span>
+            </span>
           </label>
 
           <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">

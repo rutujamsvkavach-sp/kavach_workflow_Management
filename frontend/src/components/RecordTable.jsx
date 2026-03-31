@@ -42,7 +42,12 @@ const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-4 align-top text-sm text-slate-600">{record.createdBy}</td>
+                <td className="px-4 py-4 align-top">
+                  <div className="space-y-1 text-sm text-slate-600">
+                    <p>{record.createdBy}</p>
+                    {record.anonymous ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Anonymous</p> : null}
+                  </div>
+                </td>
                 <td className="px-4 py-4 align-top text-sm text-slate-600">{new Date(record.createdAt).toLocaleString()}</td>
                 <td className="px-4 py-4 align-top">
                   <div className="flex flex-wrap gap-2">

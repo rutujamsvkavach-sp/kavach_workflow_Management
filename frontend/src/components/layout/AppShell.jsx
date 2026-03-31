@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
-const AppShell = ({ children, searchValue, onSearchChange }) => {
+const AppShell = ({ children, searchValue, onSearchChange, searchPlaceholder }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
 
@@ -13,7 +13,13 @@ const AppShell = ({ children, searchValue, onSearchChange }) => {
       <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((current) => !current)} user={user} />
       <div className="min-h-screen lg:pl-72">
         <main className="px-4 py-4 lg:px-8 lg:py-6">
-          <Topbar user={user} onLogout={logout} searchValue={searchValue} onSearchChange={onSearchChange} />
+          <Topbar
+            user={user}
+            onLogout={logout}
+            searchValue={searchValue}
+            onSearchChange={onSearchChange}
+            searchPlaceholder={searchPlaceholder}
+          />
           {children}
         </main>
       </div>

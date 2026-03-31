@@ -7,6 +7,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import StatusBadge from "../components/ui/StatusBadge";
 import { authApi } from "../services/api";
+import { matchesSearch } from "../utils/search";
 
 const AdminPage = () => {
   const [users, setUsers] = useState([]);
@@ -31,7 +32,7 @@ const AdminPage = () => {
   }, []);
 
   const filteredUsers = users.filter((user) =>
-    [user.name, user.email, user.role].some((field) => String(field).toLowerCase().includes(search.toLowerCase()))
+    matchesSearch(search, [user.name, user.email, user.role, user.staffId, user.approved ? "approved active" : "pending suspended"])
   );
 
   const toggleApproval = async (user) => {
@@ -61,7 +62,11 @@ const AdminPage = () => {
   };
 
   return (
-    <AppShell searchValue={search} onSearchChange={setSearch}>
+    <AppShell
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Search users by name, staff ID, email, role, or status..."
+    >
       <PageHeader
         eyebrow="Administration"
         title="Admin Control Panel"
@@ -87,12 +92,19 @@ const AdminPage = () => {
             </div>
           </div>
 
+          {search ? (
+            <div className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-slate-500 shadow-soft">
+              Showing <span className="font-semibold text-body">{filteredUsers.length}</span> matching users for{" "}
+              <span className="font-semibold text-primary">"{search}"</span>.
+            </div>
+          ) : null}
+
           <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-border">
                 <thead className="bg-primary text-white">
                   <tr>
-                    {["User", "Email", "Role", "Status", "Actions"].map((label) => (
+                    {["User", "Staff ID", "Email", "Role", "Status", "Actions"].map((label) => (
                       <th key={label} className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.22em]">
                         {label}
                       </th>
@@ -110,6 +122,7 @@ const AdminPage = () => {
                           <span className="font-semibold text-body">{user.name}</span>
                         </div>
                       </td>
+                      <td className="px-4 py-4 text-sm font-semibold text-primary">{user.staffId || "Pending"}</td>
                       <td className="px-4 py-4 text-sm text-slate-600">{user.email}</td>
                       <td className="px-4 py-4">
                         <StatusBadge label={user.role} variant={user.role} />
@@ -140,7 +153,7 @@ const AdminPage = () => {
                   ))}
                   {!filteredUsers.length ? (
                     <tr>
-                      <td colSpan="5" className="px-4 py-16 text-center text-sm text-slate-500">
+                      <td colSpan="6" className="px-4 py-16 text-center text-sm text-slate-500">
                         No users match the current filter.
                       </td>
                     </tr>

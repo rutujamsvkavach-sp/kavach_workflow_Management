@@ -21,6 +21,10 @@ const departmentRecordSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    anonymous: {
+      type: Boolean,
+      default: false,
+    },
     createdBy: {
       type: String,
       required: true,

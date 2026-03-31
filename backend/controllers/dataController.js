@@ -30,6 +30,7 @@ export const dataValidation = [
   body("department").trim().notEmpty().withMessage("Department is required."),
   body("title").trim().notEmpty().withMessage("Title is required."),
   body("description").trim().notEmpty().withMessage("Description is required."),
+  body("anonymous").optional().isBoolean().withMessage("Anonymous must be true or false."),
 ];
 
 export const dataIdValidation = [param("id").trim().notEmpty().withMessage("Record id is required.")];
@@ -69,7 +70,8 @@ export const getData = async (req, res, next) => {
       description: row.description,
       fileUrl: row.fileUrl,
       files: parseFiles(row.fileUrl),
-      createdBy: row.createdBy,
+      anonymous: Boolean(row.anonymous),
+      createdBy: row.anonymous ? "Anonymous" : row.createdBy,
       createdAt: row.createdAt,
     }));
 
@@ -89,6 +91,7 @@ export const createData = async (req, res, next) => {
       title: req.body.title,
       description: req.body.description,
       fileUrl: Array.isArray(req.body.fileUrl) ? req.body.fileUrl.filter(Boolean) : parseFiles(req.body.fileUrl),
+      anonymous: Boolean(req.body.anonymous),
       createdBy: req.user.name,
       createdByUserId: req.user.id,
     });
@@ -103,7 +106,8 @@ export const createData = async (req, res, next) => {
         description: record.description,
         fileUrl: record.fileUrl,
         files: parseFiles(record.fileUrl),
-        createdBy: record.createdBy,
+        anonymous: record.anonymous,
+        createdBy: record.anonymous ? "Anonymous" : record.createdBy,
         createdAt: record.createdAt,
       },
     });
@@ -135,6 +139,7 @@ export const updateData = async (req, res, next) => {
         title: req.body.title,
         description: req.body.description,
         fileUrl: Array.isArray(req.body.fileUrl) ? req.body.fileUrl.filter(Boolean) : parseFiles(req.body.fileUrl),
+        anonymous: Boolean(req.body.anonymous),
       },
       { new: true, runValidators: true }
     ).lean();
@@ -155,7 +160,8 @@ export const updateData = async (req, res, next) => {
         description: updated.description,
         fileUrl: updated.fileUrl,
         files: parseFiles(updated.fileUrl),
-        createdBy: updated.createdBy,
+        anonymous: Boolean(updated.anonymous),
+        createdBy: updated.anonymous ? "Anonymous" : updated.createdBy,
         createdAt: updated.createdAt,
       },
     });

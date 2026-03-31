@@ -2,10 +2,12 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import { authApi } from "../services/api";
+import { useNotifications } from "./NotificationContext";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const { addNotification } = useNotifications();
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("kavach_user");
     return stored ? JSON.parse(stored) : null;
@@ -38,6 +40,11 @@ export const AuthProvider = ({ children }) => {
       setToken(nextToken);
       setUser(nextUser);
       toast.success("Welcome to kavach_workflow Management.");
+      addNotification({
+        title: "Login successful",
+        message: `${nextUser.name} signed in successfully.`,
+        type: "success",
+      });
       return nextUser;
     } finally {
       setLoading(false);
@@ -53,6 +60,11 @@ export const AuthProvider = ({ children }) => {
       setToken(nextToken);
       setUser(nextUser);
       toast.success("Account created successfully.");
+      addNotification({
+        title: "Account created",
+        message: `${nextUser.name} registered and signed in.`,
+        type: "success",
+      });
       return nextUser;
     } finally {
       setLoading(false);
@@ -60,9 +72,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    const currentUserName = user?.name || "User";
     setToken(null);
     setUser(null);
     toast.success("You have been signed out.");
+    addNotification({
+      title: "Logout successful",
+      message: `${currentUserName} signed out safely.`,
+      type: "info",
+    });
   };
 
   const value = useMemo(

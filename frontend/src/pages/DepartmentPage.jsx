@@ -11,6 +11,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
+import { matchesSearch } from "../utils/search";
 
 const DepartmentPage = () => {
   const { departmentName } = useParams();
@@ -43,9 +44,8 @@ const DepartmentPage = () => {
   }, [department]);
 
   const filteredRecords = useMemo(() => {
-    const query = search.toLowerCase();
     return records.filter((record) =>
-      [record.title, record.description, record.createdBy].some((item) => String(item).toLowerCase().includes(query))
+      matchesSearch(search, [record.title, record.description, record.createdBy, record.department, record.anonymous ? "anonymous" : ""])
     );
   }, [records, search]);
 
@@ -83,7 +83,11 @@ const DepartmentPage = () => {
   };
 
   return (
-    <AppShell searchValue={search} onSearchChange={setSearch}>
+    <AppShell
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder={`Search ${department} titles, descriptions, creators, and anonymous posts...`}
+    >
       <PageHeader
         eyebrow="Department Workflow"
         title={department}
@@ -124,6 +128,13 @@ const DepartmentPage = () => {
             </div>
           </div>
 
+          {search ? (
+            <div className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-slate-500 shadow-soft">
+              Showing <span className="font-semibold text-body">{filteredRecords.length}</span> matching records for{" "}
+              <span className="font-semibold text-primary">"{search}"</span> in {department}.
+            </div>
+          ) : null}
+
           <RecordTable
             records={filteredRecords}
             canDelete={user.role === "admin"}
@@ -150,7 +161,7 @@ const DepartmentPage = () => {
       <ConfirmationModal
         open={Boolean(deleteTarget)}
         title="Delete workflow record?"
-        description="This will permanently remove the selected record from Google Sheets. This action cannot be undone."
+        description="This will permanently remove the selected record from the workflow database. This action cannot be undone."
         confirmLabel="Delete Record"
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
