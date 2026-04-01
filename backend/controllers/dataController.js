@@ -75,6 +75,65 @@ const normalizeAttachments = (value) => {
   return [normalizeAttachment(value)].filter(Boolean);
 };
 
+const normalizeVersionEntry = (value) => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const version = String(value.version || "").trim();
+
+  if (!version) {
+    return null;
+  }
+
+  return {
+    version,
+    files: normalizeAttachments(value.files || value.fileUrl),
+    uploadedAt: value.uploadedAt ? new Date(value.uploadedAt) : new Date(),
+    uploadedBy: typeof value.uploadedBy === "string" ? value.uploadedBy.trim() : "",
+  };
+};
+
+const normalizeVersionHistory = (value) => {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeVersionEntry).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    try {
+      return normalizeVersionHistory(JSON.parse(value));
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  return [normalizeVersionEntry(value)].filter(Boolean);
+};
+
+const normalizeDesignMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const srNo = Number(value.srNo);
+
+  return {
+    srNo: Number.isFinite(srNo) ? srNo : undefined,
+    zone: String(value.zone || "").trim(),
+    contractName: String(value.contractName || "").trim(),
+    station: String(value.station || "").trim(),
+    category: String(value.category || "").trim(),
+    activity: String(value.activity || "").trim(),
+    document: String(value.document || "").trim(),
+    revision: String(value.revision || "").trim(),
+    status: String(value.status || "").trim(),
+  };
+};
+
 const mapRecordResponse = (row) => ({
   id: String(row._id),
   department: row.department,
@@ -82,6 +141,8 @@ const mapRecordResponse = (row) => ({
   description: row.description,
   fileUrl: row.fileUrl,
   files: normalizeAttachments(row.fileUrl),
+  designMeta: row.designMeta,
+  versionHistory: normalizeVersionHistory(row.versionHistory),
   anonymous: Boolean(row.anonymous),
   createdBy: row.anonymous ? "Anonymous" : row.createdBy,
   createdAt: row.createdAt,
@@ -92,6 +153,8 @@ export const dataValidation = [
   body("title").trim().notEmpty().withMessage("Title is required."),
   body("description").trim().notEmpty().withMessage("Description is required."),
   body("anonymous").optional().isBoolean().withMessage("Anonymous must be true or false."),
+  body("designMeta").optional().isObject().withMessage("Design metadata must be a valid object."),
+  body("versionHistory").optional(),
 ];
 
 export const dataIdValidation = [param("id").trim().notEmpty().withMessage("Record id is required.")];
@@ -116,6 +179,14 @@ export const getData = async (req, res, next) => {
         { title: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
         { createdBy: { $regex: search, $options: "i" } },
+        { "designMeta.zone": { $regex: search, $options: "i" } },
+        { "designMeta.contractName": { $regex: search, $options: "i" } },
+        { "designMeta.station": { $regex: search, $options: "i" } },
+        { "designMeta.category": { $regex: search, $options: "i" } },
+        { "designMeta.activity": { $regex: search, $options: "i" } },
+        { "designMeta.document": { $regex: search, $options: "i" } },
+        { "designMeta.revision": { $regex: search, $options: "i" } },
+        { "designMeta.status": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -142,6 +213,8 @@ export const createData = async (req, res, next) => {
       title: req.body.title,
       description: req.body.description,
       fileUrl: normalizeAttachments(req.body.fileUrl),
+      designMeta: normalizeDesignMeta(req.body.designMeta),
+      versionHistory: normalizeVersionHistory(req.body.versionHistory),
       anonymous: Boolean(req.body.anonymous),
       createdBy: req.user.name,
       createdByUserId: req.user.id,
@@ -180,6 +253,8 @@ export const updateData = async (req, res, next) => {
         title: req.body.title,
         description: req.body.description,
         fileUrl: normalizeAttachments(req.body.fileUrl),
+        designMeta: normalizeDesignMeta(req.body.designMeta),
+        versionHistory: normalizeVersionHistory(req.body.versionHistory),
         anonymous: Boolean(req.body.anonymous),
       },
       { new: true, runValidators: true }

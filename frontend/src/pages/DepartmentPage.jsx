@@ -13,11 +13,16 @@ import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
+import DesignCheckingPage from "./DesignCheckingPage";
 
 const DepartmentPage = () => {
   const { departmentName } = useParams();
   const department = decodeURIComponent(departmentName);
   const { user } = useAuth();
+
+  if (department === "DESIGN CHECKING") {
+    return <DesignCheckingPage />;
+  }
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
