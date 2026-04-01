@@ -4,6 +4,7 @@ import { useAuth } from "./context/AuthContext";
 import AdminPage from "./pages/AdminPage";
 import DashboardPage from "./pages/DashboardPage";
 import DepartmentPage from "./pages/DepartmentPage";
+import DprPage from "./pages/DprPage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
@@ -29,6 +30,14 @@ const App = () => (
       element={
         <ProtectedRoute>
           <DashboardPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/departments/DPR"
+      element={
+        <ProtectedRoute>
+          <DprPage />
         </ProtectedRoute>
       }
     />

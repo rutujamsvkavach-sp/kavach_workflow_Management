@@ -13,7 +13,7 @@ Production-ready full-stack workflow management platform for Indian Railway depa
 - Admin user approval and role management
 - Toast notifications, loading states, confirmation modal, and search filters
 - Deployment-ready frontend config for Vercel and backend config for Render
-- Optional Cloudinary file storage for production deployments
+- Optional Cloudinary or Google Drive file storage for production deployments
 
 ## Project Structure
 
@@ -73,8 +73,9 @@ Frontend runs on `http://localhost:5173`.
 ## Notes
 
 - Uploaded files are stored locally in [backend/uploads](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/backend/uploads) for local development.
-- For public deployment, use Cloudinary by setting `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in backend env variables.
-- File URLs are stored in MongoDB in the `fileUrl` array field.
+- For public deployment, use Cloudinary by setting `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`, or use Google Drive by setting `GOOGLE_DRIVE_CLIENT_EMAIL`, `GOOGLE_DRIVE_PRIVATE_KEY`, and `GOOGLE_DRIVE_FOLDER_ID` in backend env variables.
+- For Google Drive uploads, share the target folder with the Google service account email so the backend can create files there.
+- File attachment metadata is stored in MongoDB in the `fileUrl` array field.
 - Admin registration secret is currently set to `KavachAdmin@2026` in [backend/.env](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/backend/.env).
 
 ## Deploy For Staff Access
@@ -112,4 +113,4 @@ node server.js
 
 Optional:
 - Use [render.yaml](/C:/Users/MSV/Desktop/Task%20Management%20WebSite/render.yaml) for Render blueprint-based setup.
-- Use Cloudinary for production file uploads so uploaded documents are not tied to temporary local disk storage.
+- Use Cloudinary or Google Drive for production file uploads so uploaded documents are not tied to temporary local disk storage.

@@ -2,6 +2,7 @@ import fs from "fs";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
+import { isGoogleDriveConfigured } from "../services/googleDrive.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,7 +32,7 @@ const allowedMimeTypes = new Set([
 ]);
 
 export const upload = multer({
-  storage: process.env.CLOUDINARY_CLOUD_NAME ? multer.memoryStorage() : diskStorage,
+  storage: process.env.CLOUDINARY_CLOUD_NAME || isGoogleDriveConfigured() ? multer.memoryStorage() : diskStorage,
   limits: {
     fileSize: 10 * 1024 * 1024,
   },

@@ -9,6 +9,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { departments } from "../constants/departments";
 import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
+import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
 
 const DashboardPage = () => {
@@ -42,7 +43,7 @@ const DashboardPage = () => {
         record.description,
         record.createdBy,
         record.anonymous ? "anonymous" : "",
-        ...(record.files || []),
+        ...getFileSearchTerms(record.files),
       ])
     );
   }, [records, search]);

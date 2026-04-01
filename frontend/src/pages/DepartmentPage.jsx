@@ -11,6 +11,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
+import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
 
 const DepartmentPage = () => {
@@ -45,7 +46,14 @@ const DepartmentPage = () => {
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) =>
-      matchesSearch(search, [record.title, record.description, record.createdBy, record.department, record.anonymous ? "anonymous" : ""])
+      matchesSearch(search, [
+        record.title,
+        record.description,
+        record.createdBy,
+        record.department,
+        record.anonymous ? "anonymous" : "",
+        ...getFileSearchTerms(record.files),
+      ])
     );
   }, [records, search]);
 

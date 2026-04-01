@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import { departments } from "../constants/departments";
 import { uploadApi } from "../services/api";
+import { getFileName, getFileUrl } from "../utils/files";
 
 const defaultState = {
   department: departments[0],
@@ -52,7 +53,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
       const payload = new FormData();
       [...files].forEach((file) => payload.append("files", file));
       const response = await uploadApi.uploadFiles(payload);
-      const uploaded = response.data.data.map((item) => item.url);
+      const uploaded = response.data.data;
 
       setForm((current) => ({
         ...current,
@@ -162,11 +163,11 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
             {form.fileUrl.length ? (
               <div className="mt-4 space-y-2">
                 {form.fileUrl.map((file) => (
-                  <div key={file} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
+                  <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
                     <div className="flex min-w-0 items-center gap-3">
                       <Paperclip size={16} className="text-primary" />
-                      <a href={file} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
-                        {file.split("/").pop()}
+                      <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
+                        {getFileName(file)}
                       </a>
                     </div>
                     <button
@@ -174,7 +175,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
                       onClick={() =>
                         setForm((current) => ({
                           ...current,
-                          fileUrl: current.fileUrl.filter((item) => item !== file),
+                          fileUrl: current.fileUrl.filter((item) => getFileUrl(item) !== getFileUrl(file)),
                         }))
                       }
                       className="text-sm font-semibold text-accent"

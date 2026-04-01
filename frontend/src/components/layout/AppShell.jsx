@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
-const AppShell = ({ children, searchValue, onSearchChange, searchPlaceholder }) => {
+const AppShell = ({ children, searchValue, onSearchChange, searchPlaceholder, searchDisabled = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
 
@@ -19,6 +19,7 @@ const AppShell = ({ children, searchValue, onSearchChange, searchPlaceholder }) 
             searchValue={searchValue}
             onSearchChange={onSearchChange}
             searchPlaceholder={searchPlaceholder}
+            searchDisabled={searchDisabled}
           />
           {children}
         </main>

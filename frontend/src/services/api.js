@@ -43,6 +43,13 @@ export const recordsApi = {
   remove: (id) => api.delete(`/data/${id}`),
 };
 
+export const dprApi = {
+  getAll: (date) => api.get("/dpr", { params: { date } }),
+  create: (payload) => api.post("/dpr", payload),
+  update: (id, payload) => api.put(`/dpr/${id}`, payload),
+  remove: (id) => api.delete(`/dpr/${id}`),
+};
+
 export const uploadApi = {
   uploadFiles: (formData) =>
     api.post("/upload", formData, {

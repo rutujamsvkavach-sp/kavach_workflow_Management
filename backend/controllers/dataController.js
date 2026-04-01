@@ -1,30 +1,91 @@
 import { body, param, query } from "express-validator";
 import DepartmentRecord from "../models/DepartmentRecord.js";
 
-const toFileUrlString = (value) => {
-  if (Array.isArray(value)) {
-    return JSON.stringify(value.filter(Boolean));
+const getFileNameFromUrl = (url) => {
+  try {
+    const parsedUrl = new URL(url);
+    const segments = parsedUrl.pathname.split("/").filter(Boolean);
+    return decodeURIComponent(segments.pop() || "Attachment");
+  } catch (_error) {
+    const segments = String(url).split("/").filter(Boolean);
+    return decodeURIComponent(segments.pop() || "Attachment");
+  }
+};
+
+const normalizeAttachment = (value) => {
+  if (!value) {
+    return null;
   }
 
   if (typeof value === "string") {
-    return value;
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+      return null;
+    }
+
+    return {
+      name: getFileNameFromUrl(trimmedValue),
+      url: trimmedValue,
+      provider: "legacy",
+    };
   }
 
-  return JSON.stringify([]);
+  if (typeof value === "object") {
+    const url = typeof value.url === "string" ? value.url.trim() : "";
+
+    if (!url) {
+      return null;
+    }
+
+    return {
+      name: typeof value.name === "string" && value.name.trim() ? value.name.trim() : getFileNameFromUrl(url),
+      url,
+      type: typeof value.type === "string" ? value.type : undefined,
+      size: Number.isFinite(Number(value.size)) ? Number(value.size) : undefined,
+      provider: typeof value.provider === "string" ? value.provider : undefined,
+      downloadUrl: typeof value.downloadUrl === "string" ? value.downloadUrl : undefined,
+    };
+  }
+
+  return null;
 };
 
-const parseFiles = (value) => {
+const normalizeAttachments = (value) => {
   if (!value) {
     return [];
   }
 
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [value];
-  } catch (_error) {
-    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  if (Array.isArray(value)) {
+    return value.map(normalizeAttachment).filter(Boolean);
   }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return normalizeAttachments(parsed);
+    } catch (_error) {
+      return value
+        .split(",")
+        .map((item) => normalizeAttachment(item))
+        .filter(Boolean);
+    }
+  }
+
+  return [normalizeAttachment(value)].filter(Boolean);
 };
+
+const mapRecordResponse = (row) => ({
+  id: String(row._id),
+  department: row.department,
+  title: row.title,
+  description: row.description,
+  fileUrl: row.fileUrl,
+  files: normalizeAttachments(row.fileUrl),
+  anonymous: Boolean(row.anonymous),
+  createdBy: row.anonymous ? "Anonymous" : row.createdBy,
+  createdAt: row.createdAt,
+});
 
 export const dataValidation = [
   body("department").trim().notEmpty().withMessage("Department is required."),
@@ -63,17 +124,7 @@ export const getData = async (req, res, next) => {
     }
 
     const rows = await DepartmentRecord.find(queryFilter).sort({ createdAt: -1 }).lean();
-    const filtered = rows.map((row) => ({
-      id: String(row._id),
-      department: row.department,
-      title: row.title,
-      description: row.description,
-      fileUrl: row.fileUrl,
-      files: parseFiles(row.fileUrl),
-      anonymous: Boolean(row.anonymous),
-      createdBy: row.anonymous ? "Anonymous" : row.createdBy,
-      createdAt: row.createdAt,
-    }));
+    const filtered = rows.map((row) => mapRecordResponse(row));
 
     res.json({
       success: true,
@@ -90,7 +141,7 @@ export const createData = async (req, res, next) => {
       department: req.body.department,
       title: req.body.title,
       description: req.body.description,
-      fileUrl: Array.isArray(req.body.fileUrl) ? req.body.fileUrl.filter(Boolean) : parseFiles(req.body.fileUrl),
+      fileUrl: normalizeAttachments(req.body.fileUrl),
       anonymous: Boolean(req.body.anonymous),
       createdBy: req.user.name,
       createdByUserId: req.user.id,
@@ -99,17 +150,7 @@ export const createData = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Record created successfully.",
-      data: {
-        id: String(record._id),
-        department: record.department,
-        title: record.title,
-        description: record.description,
-        fileUrl: record.fileUrl,
-        files: parseFiles(record.fileUrl),
-        anonymous: record.anonymous,
-        createdBy: record.anonymous ? "Anonymous" : record.createdBy,
-        createdAt: record.createdAt,
-      },
+      data: mapRecordResponse(record),
     });
   } catch (error) {
     next(error);
@@ -138,7 +179,7 @@ export const updateData = async (req, res, next) => {
         department: req.body.department,
         title: req.body.title,
         description: req.body.description,
-        fileUrl: Array.isArray(req.body.fileUrl) ? req.body.fileUrl.filter(Boolean) : parseFiles(req.body.fileUrl),
+        fileUrl: normalizeAttachments(req.body.fileUrl),
         anonymous: Boolean(req.body.anonymous),
       },
       { new: true, runValidators: true }
@@ -153,17 +194,7 @@ export const updateData = async (req, res, next) => {
     res.json({
       success: true,
       message: "Record updated successfully.",
-      data: {
-        id: String(updated._id),
-        department: updated.department,
-        title: updated.title,
-        description: updated.description,
-        fileUrl: updated.fileUrl,
-        files: parseFiles(updated.fileUrl),
-        anonymous: Boolean(updated.anonymous),
-        createdBy: updated.anonymous ? "Anonymous" : updated.createdBy,
-        createdAt: updated.createdAt,
-      },
+      data: mapRecordResponse(updated),
     });
   } catch (error) {
     next(error);

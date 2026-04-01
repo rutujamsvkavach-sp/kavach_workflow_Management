@@ -1,4 +1,5 @@
 import { Download, Pencil, Trash2 } from "lucide-react";
+import { getFileName, getFileUrl } from "../utils/files";
 
 const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
   <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
@@ -27,14 +28,14 @@ const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
                     {record.files?.length ? (
                       record.files.map((file) => (
                         <a
-                          key={file}
-                          href={file}
+                          key={`${getFileUrl(file)}-${getFileName(file)}`}
+                          href={getFileUrl(file)}
                           target="_blank"
                           rel="noreferrer"
                           className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
                         >
                           <Download size={14} />
-                          <span className="max-w-[180px] truncate">{file.split("/").pop()}</span>
+                          <span className="max-w-[180px] truncate">{getFileName(file)}</span>
                         </a>
                       ))
                     ) : (

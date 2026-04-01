@@ -10,6 +10,7 @@ import { fileURLToPath } from "url";
 import { connectDatabase } from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import dataRoutes from "./routes/dataRoutes.js";
+import dprRoutes from "./routes/dprRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware.js";
 
@@ -58,6 +59,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/data", dataRoutes);
+app.use("/api/dpr", dprRoutes);
 app.use("/api/upload", uploadRoutes);
 
 app.use(notFoundHandler);

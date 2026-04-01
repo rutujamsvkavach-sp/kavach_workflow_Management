@@ -18,7 +18,7 @@ const departmentRecordSchema = new mongoose.Schema(
       trim: true,
     },
     fileUrl: {
-      type: [String],
+      type: [mongoose.Schema.Types.Mixed],
       default: [],
     },
     anonymous: {

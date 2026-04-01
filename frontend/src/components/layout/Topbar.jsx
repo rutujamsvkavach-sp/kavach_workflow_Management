@@ -19,7 +19,14 @@ const formatTimeAgo = (value) => {
   return `${days}d ago`;
 };
 
-const Topbar = ({ user, onLogout, searchValue, onSearchChange, searchPlaceholder = "Search workflow records, creators, and documents..." }) => {
+const Topbar = ({
+  user,
+  onLogout,
+  searchValue,
+  onSearchChange,
+  searchPlaceholder = "Search workflow records, creators, and documents...",
+  searchDisabled = false,
+}) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { notifications, unreadCount, markAllAsRead, clearNotifications } = useNotifications();
@@ -34,6 +41,7 @@ const Topbar = ({ user, onLogout, searchValue, onSearchChange, searchPlaceholder
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={searchPlaceholder}
+            disabled={searchDisabled}
             className="w-full rounded-lg border border-border bg-white px-11 py-3 pr-11 text-sm text-body outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
           />
           {searchValue ? (

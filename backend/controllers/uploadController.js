@@ -1,4 +1,5 @@
 import { isCloudinaryConfigured, uploadBufferToCloudinary } from "../services/cloudinary.js";
+import { isGoogleDriveConfigured, uploadBufferToGoogleDrive } from "../services/googleDrive.js";
 
 const getResourceType = (mimeType) => {
   if (mimeType.startsWith("image/")) {
@@ -17,29 +18,40 @@ export const uploadFiles = async (req, res, next) => {
     }
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const files = isCloudinaryConfigured()
+    const files = isGoogleDriveConfigured()
       ? await Promise.all(
-          req.files.map(async (file) => {
-            const result = await uploadBufferToCloudinary(
-              file.buffer,
-              process.env.CLOUDINARY_FOLDER || "kavach",
-              getResourceType(file.mimetype)
-            );
-
-            return {
-              name: file.originalname,
-              url: result.secure_url,
-              type: file.mimetype,
-              size: file.size,
-            };
-          })
+          req.files.map((file) =>
+            uploadBufferToGoogleDrive(file.buffer, {
+              fileName: file.originalname,
+              mimeType: file.mimetype,
+            })
+          )
         )
-      : req.files.map((file) => ({
-          name: file.originalname,
-          url: `${baseUrl}/uploads/${file.filename}`,
-          type: file.mimetype,
-          size: file.size,
-        }));
+      : isCloudinaryConfigured()
+        ? await Promise.all(
+            req.files.map(async (file) => {
+              const result = await uploadBufferToCloudinary(
+                file.buffer,
+                process.env.CLOUDINARY_FOLDER || "kavach",
+                getResourceType(file.mimetype)
+              );
+
+              return {
+                name: file.originalname,
+                url: result.secure_url,
+                type: file.mimetype,
+                size: file.size,
+                provider: "cloudinary",
+              };
+            })
+          )
+        : req.files.map((file) => ({
+            name: file.originalname,
+            url: `${baseUrl}/uploads/${file.filename}`,
+            type: file.mimetype,
+            size: file.size,
+            provider: "local",
+          }));
 
     res.status(201).json({
       success: true,
