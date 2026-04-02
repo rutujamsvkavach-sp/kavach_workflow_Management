@@ -198,6 +198,146 @@ const siteImageMetaSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const telecomMetaSchema = new mongoose.Schema(
+  {
+    srNo: {
+      type: Number,
+    },
+    testDate: {
+      type: String,
+      trim: true,
+    },
+    fiberLength: {
+      type: String,
+      trim: true,
+    },
+    fiberDetails: {
+      type: String,
+      trim: true,
+    },
+    wavelength: {
+      type: String,
+      trim: true,
+    },
+    testBy: {
+      type: String,
+      trim: true,
+    },
+    remark: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
+const civilFieldValueSchema = new mongoose.Schema(
+  {
+    text: {
+      type: String,
+      trim: true,
+    },
+    files: {
+      type: [attachmentSchema],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
+const civilMetaSchema = new mongoose.Schema(
+  {
+    srNo: {
+      type: Number,
+    },
+    section: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    stationLcGate: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    tentativeGadRailway: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    siteSurveyReportByAgency: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    towerId: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    completionGadOfTowerByAgency: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    cableRoutePlanSignedCopy: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    soilTestBoreLog: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    soilTestLabReport: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    excavation: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    pcc: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    firstStageInspection: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    rccFirstLift: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    secondStageInspection: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    secondLiftFoundationCipFixing: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    thirdStageInspection: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    erectionOfTower: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    erectedTowerJpg: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    fourthStageInspection: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    cableLayingTowerToRelayRoom: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+    earthing: {
+      type: civilFieldValueSchema,
+      default: undefined,
+    },
+  },
+  { _id: false }
+);
+
 const departmentRecordSchema = new mongoose.Schema(
   {
     department: {
@@ -233,6 +373,14 @@ const departmentRecordSchema = new mongoose.Schema(
     },
     siteImageMeta: {
       type: siteImageMetaSchema,
+      default: undefined,
+    },
+    telecomMeta: {
+      type: telecomMetaSchema,
+      default: undefined,
+    },
+    civilMeta: {
+      type: civilMetaSchema,
       default: undefined,
     },
     versionHistory: {

@@ -192,6 +192,84 @@ const normalizeSiteImageMeta = (value) => {
   };
 };
 
+const normalizeTelecomMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const srNo = Number(value.srNo);
+
+  return {
+    srNo: Number.isFinite(srNo) ? srNo : undefined,
+    testDate: String(value.testDate || "").trim(),
+    fiberLength: String(value.fiberLength || "").trim(),
+    fiberDetails: String(value.fiberDetails || "").trim(),
+    wavelength: String(value.wavelength || "").trim(),
+    testBy: String(value.testBy || "").trim(),
+    remark: String(value.remark || "").trim(),
+  };
+};
+
+const normalizeCivilFieldValue = (value) => {
+  if (!value) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    const text = value.trim();
+    return text ? { text, files: [] } : undefined;
+  }
+
+  if (typeof value !== "object") {
+    return undefined;
+  }
+
+  const text = String(value.text || "").trim();
+  const files = normalizeAttachments(value.files || value.fileUrl);
+
+  if (!text && !files.length) {
+    return undefined;
+  }
+
+  return {
+    text,
+    files,
+  };
+};
+
+const normalizeCivilMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const srNo = Number(value.srNo);
+
+  return {
+    srNo: Number.isFinite(srNo) ? srNo : undefined,
+    section: normalizeCivilFieldValue(value.section),
+    stationLcGate: normalizeCivilFieldValue(value.stationLcGate),
+    tentativeGadRailway: normalizeCivilFieldValue(value.tentativeGadRailway),
+    siteSurveyReportByAgency: normalizeCivilFieldValue(value.siteSurveyReportByAgency),
+    towerId: normalizeCivilFieldValue(value.towerId),
+    completionGadOfTowerByAgency: normalizeCivilFieldValue(value.completionGadOfTowerByAgency),
+    cableRoutePlanSignedCopy: normalizeCivilFieldValue(value.cableRoutePlanSignedCopy),
+    soilTestBoreLog: normalizeCivilFieldValue(value.soilTestBoreLog),
+    soilTestLabReport: normalizeCivilFieldValue(value.soilTestLabReport),
+    excavation: normalizeCivilFieldValue(value.excavation),
+    pcc: normalizeCivilFieldValue(value.pcc),
+    firstStageInspection: normalizeCivilFieldValue(value.firstStageInspection),
+    rccFirstLift: normalizeCivilFieldValue(value.rccFirstLift),
+    secondStageInspection: normalizeCivilFieldValue(value.secondStageInspection),
+    secondLiftFoundationCipFixing: normalizeCivilFieldValue(value.secondLiftFoundationCipFixing),
+    thirdStageInspection: normalizeCivilFieldValue(value.thirdStageInspection),
+    erectionOfTower: normalizeCivilFieldValue(value.erectionOfTower),
+    erectedTowerJpg: normalizeCivilFieldValue(value.erectedTowerJpg),
+    fourthStageInspection: normalizeCivilFieldValue(value.fourthStageInspection),
+    cableLayingTowerToRelayRoom: normalizeCivilFieldValue(value.cableLayingTowerToRelayRoom),
+    earthing: normalizeCivilFieldValue(value.earthing),
+  };
+};
+
 const mapRecordResponse = (row) => ({
   id: String(row._id),
   department: row.department,
@@ -203,6 +281,8 @@ const mapRecordResponse = (row) => ({
   workMeta: row.workMeta,
   locoMeta: row.locoMeta,
   siteImageMeta: row.siteImageMeta,
+  telecomMeta: row.telecomMeta,
+  civilMeta: row.civilMeta,
   versionHistory: normalizeVersionHistory(row.versionHistory),
   anonymous: Boolean(row.anonymous),
   createdBy: row.anonymous ? "Anonymous" : row.createdBy,
@@ -218,6 +298,8 @@ export const dataValidation = [
   body("workMeta").optional().isObject().withMessage("Work metadata must be a valid object."),
   body("locoMeta").optional().isObject().withMessage("Loco metadata must be a valid object."),
   body("siteImageMeta").optional().isObject().withMessage("Site image metadata must be a valid object."),
+  body("telecomMeta").optional().isObject().withMessage("Telecom metadata must be a valid object."),
+  body("civilMeta").optional().isObject().withMessage("Civil metadata must be a valid object."),
   body("versionHistory").optional(),
 ];
 
@@ -268,6 +350,33 @@ export const getData = async (req, res, next) => {
         { "siteImageMeta.vendor": { $regex: search, $options: "i" } },
         { "siteImageMeta.station": { $regex: search, $options: "i" } },
         { "siteImageMeta.imageDate": { $regex: search, $options: "i" } },
+        { "telecomMeta.testDate": { $regex: search, $options: "i" } },
+        { "telecomMeta.fiberLength": { $regex: search, $options: "i" } },
+        { "telecomMeta.fiberDetails": { $regex: search, $options: "i" } },
+        { "telecomMeta.wavelength": { $regex: search, $options: "i" } },
+        { "telecomMeta.testBy": { $regex: search, $options: "i" } },
+        { "telecomMeta.remark": { $regex: search, $options: "i" } },
+        { "civilMeta.section.text": { $regex: search, $options: "i" } },
+        { "civilMeta.stationLcGate.text": { $regex: search, $options: "i" } },
+        { "civilMeta.tentativeGadRailway.text": { $regex: search, $options: "i" } },
+        { "civilMeta.siteSurveyReportByAgency.text": { $regex: search, $options: "i" } },
+        { "civilMeta.towerId.text": { $regex: search, $options: "i" } },
+        { "civilMeta.completionGadOfTowerByAgency.text": { $regex: search, $options: "i" } },
+        { "civilMeta.cableRoutePlanSignedCopy.text": { $regex: search, $options: "i" } },
+        { "civilMeta.soilTestBoreLog.text": { $regex: search, $options: "i" } },
+        { "civilMeta.soilTestLabReport.text": { $regex: search, $options: "i" } },
+        { "civilMeta.excavation.text": { $regex: search, $options: "i" } },
+        { "civilMeta.pcc.text": { $regex: search, $options: "i" } },
+        { "civilMeta.firstStageInspection.text": { $regex: search, $options: "i" } },
+        { "civilMeta.rccFirstLift.text": { $regex: search, $options: "i" } },
+        { "civilMeta.secondStageInspection.text": { $regex: search, $options: "i" } },
+        { "civilMeta.secondLiftFoundationCipFixing.text": { $regex: search, $options: "i" } },
+        { "civilMeta.thirdStageInspection.text": { $regex: search, $options: "i" } },
+        { "civilMeta.erectionOfTower.text": { $regex: search, $options: "i" } },
+        { "civilMeta.erectedTowerJpg.text": { $regex: search, $options: "i" } },
+        { "civilMeta.fourthStageInspection.text": { $regex: search, $options: "i" } },
+        { "civilMeta.cableLayingTowerToRelayRoom.text": { $regex: search, $options: "i" } },
+        { "civilMeta.earthing.text": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -298,6 +407,8 @@ export const createData = async (req, res, next) => {
       workMeta: normalizeWorkMeta(req.body.workMeta),
       locoMeta: normalizeLocoMeta(req.body.locoMeta),
       siteImageMeta: normalizeSiteImageMeta(req.body.siteImageMeta),
+      telecomMeta: normalizeTelecomMeta(req.body.telecomMeta),
+      civilMeta: normalizeCivilMeta(req.body.civilMeta),
       versionHistory: normalizeVersionHistory(req.body.versionHistory),
       anonymous: Boolean(req.body.anonymous),
       createdBy: req.user.name,
@@ -341,6 +452,8 @@ export const updateData = async (req, res, next) => {
         workMeta: normalizeWorkMeta(req.body.workMeta),
         locoMeta: normalizeLocoMeta(req.body.locoMeta),
         siteImageMeta: normalizeSiteImageMeta(req.body.siteImageMeta),
+        telecomMeta: normalizeTelecomMeta(req.body.telecomMeta),
+        civilMeta: normalizeCivilMeta(req.body.civilMeta),
         versionHistory: normalizeVersionHistory(req.body.versionHistory),
         anonymous: Boolean(req.body.anonymous),
       },

@@ -13,9 +13,11 @@ import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
+import CivilPage from "./CivilPage";
 import DesignCheckingPage from "./DesignCheckingPage";
 import LocoTrialsPage from "./LocoTrialsPage";
 import SiteWorkImagesPage from "./SiteWorkImagesPage";
+import TelecomRecordsPage from "./TelecomRecordsPage";
 import WorksAttendancePage from "./WorksAttendancePage";
 
 const DepartmentPage = () => {
@@ -34,6 +36,12 @@ const DepartmentPage = () => {
   }
   if (department === "SITE WORK IMAGES") {
     return <SiteWorkImagesPage />;
+  }
+  if (department === "TELECOM RECORDS") {
+    return <TelecomRecordsPage />;
+  }
+  if (department === "CIVIL") {
+    return <CivilPage />;
   }
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");
