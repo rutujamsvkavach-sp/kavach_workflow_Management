@@ -158,6 +158,40 @@ const normalizeWorkMeta = (value) => {
   };
 };
 
+const normalizeLocoMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const srNo = Number(value.srNo);
+
+  return {
+    srNo: Number.isFinite(srNo) ? srNo : undefined,
+    trialCondition: String(value.trialCondition || "").trim(),
+    locoDetails: String(value.locoDetails || "").trim(),
+    trialDate: String(value.trialDate || "").trim(),
+    driver: String(value.driver || "").trim(),
+    doneBy: String(value.doneBy || "").trim(),
+    remarks: String(value.remarks || "").trim(),
+  };
+};
+
+const normalizeSiteImageMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const srNo = Number(value.srNo);
+
+  return {
+    srNo: Number.isFinite(srNo) ? srNo : undefined,
+    pssa: String(value.pssa || "").trim(),
+    vendor: String(value.vendor || "").trim(),
+    station: String(value.station || "").trim(),
+    imageDate: String(value.imageDate || "").trim(),
+  };
+};
+
 const mapRecordResponse = (row) => ({
   id: String(row._id),
   department: row.department,
@@ -167,6 +201,8 @@ const mapRecordResponse = (row) => ({
   files: normalizeAttachments(row.fileUrl),
   designMeta: row.designMeta,
   workMeta: row.workMeta,
+  locoMeta: row.locoMeta,
+  siteImageMeta: row.siteImageMeta,
   versionHistory: normalizeVersionHistory(row.versionHistory),
   anonymous: Boolean(row.anonymous),
   createdBy: row.anonymous ? "Anonymous" : row.createdBy,
@@ -180,6 +216,8 @@ export const dataValidation = [
   body("anonymous").optional().isBoolean().withMessage("Anonymous must be true or false."),
   body("designMeta").optional().isObject().withMessage("Design metadata must be a valid object."),
   body("workMeta").optional().isObject().withMessage("Work metadata must be a valid object."),
+  body("locoMeta").optional().isObject().withMessage("Loco metadata must be a valid object."),
+  body("siteImageMeta").optional().isObject().withMessage("Site image metadata must be a valid object."),
   body("versionHistory").optional(),
 ];
 
@@ -220,6 +258,16 @@ export const getData = async (req, res, next) => {
         { "workMeta.staffId": { $regex: search, $options: "i" } },
         { "workMeta.locationLabel": { $regex: search, $options: "i" } },
         { "workMeta.remarks": { $regex: search, $options: "i" } },
+        { "locoMeta.trialCondition": { $regex: search, $options: "i" } },
+        { "locoMeta.locoDetails": { $regex: search, $options: "i" } },
+        { "locoMeta.trialDate": { $regex: search, $options: "i" } },
+        { "locoMeta.driver": { $regex: search, $options: "i" } },
+        { "locoMeta.doneBy": { $regex: search, $options: "i" } },
+        { "locoMeta.remarks": { $regex: search, $options: "i" } },
+        { "siteImageMeta.pssa": { $regex: search, $options: "i" } },
+        { "siteImageMeta.vendor": { $regex: search, $options: "i" } },
+        { "siteImageMeta.station": { $regex: search, $options: "i" } },
+        { "siteImageMeta.imageDate": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -248,6 +296,8 @@ export const createData = async (req, res, next) => {
       fileUrl: normalizeAttachments(req.body.fileUrl),
       designMeta: normalizeDesignMeta(req.body.designMeta),
       workMeta: normalizeWorkMeta(req.body.workMeta),
+      locoMeta: normalizeLocoMeta(req.body.locoMeta),
+      siteImageMeta: normalizeSiteImageMeta(req.body.siteImageMeta),
       versionHistory: normalizeVersionHistory(req.body.versionHistory),
       anonymous: Boolean(req.body.anonymous),
       createdBy: req.user.name,
@@ -289,6 +339,8 @@ export const updateData = async (req, res, next) => {
         fileUrl: normalizeAttachments(req.body.fileUrl),
         designMeta: normalizeDesignMeta(req.body.designMeta),
         workMeta: normalizeWorkMeta(req.body.workMeta),
+        locoMeta: normalizeLocoMeta(req.body.locoMeta),
+        siteImageMeta: normalizeSiteImageMeta(req.body.siteImageMeta),
         versionHistory: normalizeVersionHistory(req.body.versionHistory),
         anonymous: Boolean(req.body.anonymous),
       },

@@ -140,6 +140,64 @@ const workMetaSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const locoMetaSchema = new mongoose.Schema(
+  {
+    srNo: {
+      type: Number,
+    },
+    trialCondition: {
+      type: String,
+      trim: true,
+    },
+    locoDetails: {
+      type: String,
+      trim: true,
+    },
+    trialDate: {
+      type: String,
+      trim: true,
+    },
+    driver: {
+      type: String,
+      trim: true,
+    },
+    doneBy: {
+      type: String,
+      trim: true,
+    },
+    remarks: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
+const siteImageMetaSchema = new mongoose.Schema(
+  {
+    srNo: {
+      type: Number,
+    },
+    pssa: {
+      type: String,
+      trim: true,
+    },
+    vendor: {
+      type: String,
+      trim: true,
+    },
+    station: {
+      type: String,
+      trim: true,
+    },
+    imageDate: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
 const departmentRecordSchema = new mongoose.Schema(
   {
     department: {
@@ -167,6 +225,14 @@ const departmentRecordSchema = new mongoose.Schema(
     },
     workMeta: {
       type: workMetaSchema,
+      default: undefined,
+    },
+    locoMeta: {
+      type: locoMetaSchema,
+      default: undefined,
+    },
+    siteImageMeta: {
+      type: siteImageMetaSchema,
       default: undefined,
     },
     versionHistory: {

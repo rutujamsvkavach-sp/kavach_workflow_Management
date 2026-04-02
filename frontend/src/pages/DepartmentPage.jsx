@@ -14,6 +14,8 @@ import { recordsApi } from "../services/api";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
 import DesignCheckingPage from "./DesignCheckingPage";
+import LocoTrialsPage from "./LocoTrialsPage";
+import SiteWorkImagesPage from "./SiteWorkImagesPage";
 import WorksAttendancePage from "./WorksAttendancePage";
 
 const DepartmentPage = () => {
@@ -26,6 +28,12 @@ const DepartmentPage = () => {
   }
   if (department === "WORKS") {
     return <WorksAttendancePage />;
+  }
+  if (department === "LOCO TRIALS") {
+    return <LocoTrialsPage />;
+  }
+  if (department === "SITE WORK IMAGES") {
+    return <SiteWorkImagesPage />;
   }
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");
