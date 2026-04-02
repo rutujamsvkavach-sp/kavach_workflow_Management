@@ -27,6 +27,10 @@ const mapEntry = (entry) => ({
 });
 
 export const dprQueryValidation = [query("date").notEmpty().withMessage("Date is required.").isISO8601().withMessage("Date must be valid.")];
+export const dprRangeQueryValidation = [
+  query("startDate").notEmpty().withMessage("Start date is required.").isISO8601().withMessage("Start date must be valid."),
+  query("endDate").notEmpty().withMessage("End date is required.").isISO8601().withMessage("End date must be valid."),
+];
 
 export const dprValidation = [
   body("reportDate").notEmpty().withMessage("Report date is required.").isISO8601().withMessage("Report date must be valid."),
@@ -45,6 +49,29 @@ export const getDprEntries = async (req, res, next) => {
   try {
     const reportDate = normalizeDate(req.query.date);
     const rows = await DprEntry.find({ reportDate }).sort({ department: 1, updatedAt: -1 }).lean();
+
+    res.json({
+      success: true,
+      data: rows.map(mapEntry),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDprEntriesByRange = async (req, res, next) => {
+  try {
+    const startDate = normalizeDate(req.query.startDate);
+    const endDate = normalizeDate(req.query.endDate);
+
+    const rows = await DprEntry.find({
+      reportDate: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    })
+      .sort({ reportDate: -1, department: 1, updatedAt: -1 })
+      .lean();
 
     res.json({
       success: true,

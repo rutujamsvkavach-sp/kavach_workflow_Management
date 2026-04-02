@@ -45,6 +45,7 @@ export const recordsApi = {
 
 export const dprApi = {
   getAll: (date) => api.get("/dpr", { params: { date } }),
+  getRange: (startDate, endDate) => api.get("/dpr/range", { params: { startDate, endDate } }),
   create: (payload) => api.post("/dpr", payload),
   update: (id, payload) => api.put(`/dpr/${id}`, payload),
   remove: (id) => api.delete(`/dpr/${id}`),

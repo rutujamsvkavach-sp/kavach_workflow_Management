@@ -3,6 +3,7 @@ export const departments = [
   "DESIGN CHECKING",
   "DOCUMENT",
   "MONITORING",
+  "MONITORING WORKS",
   "WORKS",
   "LOCO TRIALS",
   "SITE WORK IMAGES",
