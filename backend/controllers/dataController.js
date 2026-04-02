@@ -134,6 +134,30 @@ const normalizeDesignMeta = (value) => {
   };
 };
 
+const normalizeWorkMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const latitude = Number(value.latitude);
+  const longitude = Number(value.longitude);
+  const accuracy = Number(value.accuracy);
+
+  return {
+    attendanceDate: String(value.attendanceDate || "").trim(),
+    checkInTime: String(value.checkInTime || "").trim(),
+    checkOutTime: String(value.checkOutTime || "").trim(),
+    staffName: String(value.staffName || "").trim(),
+    staffId: String(value.staffId || "").trim(),
+    latitude: Number.isFinite(latitude) ? latitude : undefined,
+    longitude: Number.isFinite(longitude) ? longitude : undefined,
+    accuracy: Number.isFinite(accuracy) ? accuracy : undefined,
+    locationLabel: String(value.locationLabel || "").trim(),
+    purpose: String(value.purpose || "").trim(),
+    remarks: String(value.remarks || "").trim(),
+  };
+};
+
 const mapRecordResponse = (row) => ({
   id: String(row._id),
   department: row.department,
@@ -142,6 +166,7 @@ const mapRecordResponse = (row) => ({
   fileUrl: row.fileUrl,
   files: normalizeAttachments(row.fileUrl),
   designMeta: row.designMeta,
+  workMeta: row.workMeta,
   versionHistory: normalizeVersionHistory(row.versionHistory),
   anonymous: Boolean(row.anonymous),
   createdBy: row.anonymous ? "Anonymous" : row.createdBy,
@@ -154,6 +179,7 @@ export const dataValidation = [
   body("description").trim().notEmpty().withMessage("Description is required."),
   body("anonymous").optional().isBoolean().withMessage("Anonymous must be true or false."),
   body("designMeta").optional().isObject().withMessage("Design metadata must be a valid object."),
+  body("workMeta").optional().isObject().withMessage("Work metadata must be a valid object."),
   body("versionHistory").optional(),
 ];
 
@@ -187,6 +213,13 @@ export const getData = async (req, res, next) => {
         { "designMeta.document": { $regex: search, $options: "i" } },
         { "designMeta.revision": { $regex: search, $options: "i" } },
         { "designMeta.status": { $regex: search, $options: "i" } },
+        { "workMeta.attendanceDate": { $regex: search, $options: "i" } },
+        { "workMeta.checkInTime": { $regex: search, $options: "i" } },
+        { "workMeta.checkOutTime": { $regex: search, $options: "i" } },
+        { "workMeta.staffName": { $regex: search, $options: "i" } },
+        { "workMeta.staffId": { $regex: search, $options: "i" } },
+        { "workMeta.locationLabel": { $regex: search, $options: "i" } },
+        { "workMeta.remarks": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -214,6 +247,7 @@ export const createData = async (req, res, next) => {
       description: req.body.description,
       fileUrl: normalizeAttachments(req.body.fileUrl),
       designMeta: normalizeDesignMeta(req.body.designMeta),
+      workMeta: normalizeWorkMeta(req.body.workMeta),
       versionHistory: normalizeVersionHistory(req.body.versionHistory),
       anonymous: Boolean(req.body.anonymous),
       createdBy: req.user.name,
@@ -254,6 +288,7 @@ export const updateData = async (req, res, next) => {
         description: req.body.description,
         fileUrl: normalizeAttachments(req.body.fileUrl),
         designMeta: normalizeDesignMeta(req.body.designMeta),
+        workMeta: normalizeWorkMeta(req.body.workMeta),
         versionHistory: normalizeVersionHistory(req.body.versionHistory),
         anonymous: Boolean(req.body.anonymous),
       },

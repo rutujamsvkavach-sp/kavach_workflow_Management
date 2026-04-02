@@ -33,6 +33,108 @@ const ZONES = [
 ];
 const CONTRACTS = ["HBL", "IRCON", "MSV"];
 const CATEGORIES = ["QA", "EXECUTION", "APPROVED"];
+const CENTRAL_RAILWAY_STATIONS = [
+  "LC-19 (DD-BRB)",
+  "BORIBIAL",
+  "BORIBIAL-MALTHAN",
+  "MALTHAN",
+  "MALTHAN-BHIGVAN",
+  "BHIGVAN",
+  "JINTI ROAD",
+  "JINTI ROAD-KETUR",
+  "KETUR",
+  "WASHIMBE",
+  "POPHLAJ",
+  "JEUR-POPHLAJ",
+  "JEUR",
+  "BHALVANI",
+  "KEM",
+  "KEM-DHAVLAS",
+  "DHAVALAS",
+  "KURDUWADI",
+  "WADSHINGE",
+  "LC-40 (WDS-MA)",
+  "MADHA",
+  "VAKAV",
+  "ANGAR",
+  "MALIKPETH",
+  "MOHOL",
+  "MUNDHEWADI",
+  "MVE-PAKNI",
+  "PAKNI",
+  "PAKNI-BALE",
+  "BALE",
+  "SOLAPUR",
+  "TIKEKERWADI",
+  "HOTGI",
+  "TILATI",
+  "TILATI-AKALKOT",
+  "AKALKOT",
+  "NAGANSUR",
+  "NAGANSUR-BOROTI",
+  "BOROTI",
+  "LC 74 (BOT-DUD)",
+  "DUDHANI",
+  "KULALI",
+  "GAUDGAON",
+  "GANGAPUR",
+  "GUR-SVG",
+  "SAVALGI",
+  "SVG-BBD",
+  "BABLAD",
+  "LC-82",
+  "KALABURGI",
+  "TAJ SULTANPUR",
+  "HIRENANDURU",
+  "HQR-MR",
+  "MARTUR",
+  "MR-SDB",
+  "SHAHABAD",
+  "LC-91",
+  "WADI",
+  "MODLIMB",
+  "LC-22 (MLB-PVR)",
+  "PANDHARPUR",
+  "LC-24 (PVR-SGLA)",
+  "SANGOLA",
+  "SGLA-JATH ROAD",
+  "JTRD- DLGN",
+  "DHALGAON",
+  "KAVATHEMAHANKAL",
+  "SALGARE",
+  "ARAG",
+  "LC-70 (ARAG-MRJ)",
+  "SHENDRI",
+  "LC-10 (SEI-BTW)",
+  "BARSHI TOWN",
+  "PANGRI",
+  "PJR - UMD  (Near PJR)",
+  "PJR - UMD  (Near UMD)",
+  "OSMANABAD",
+  "YSI - UMD",
+  "YEDSHI",
+  "LC-34 (YSI-DKY)",
+  "DHOKI",
+  "LC-39 (DKY-OSA)",
+  "LC-47 (DKY-OSA)",
+  "AUSA ROAD",
+  "OSA-HGL",
+  "HARANGUL",
+  "LATUR",
+  "LC-04 (LUR-LTRR)",
+  "LC-06 (LUR-LTRR)",
+  "LC-02 (LUR-LTRR)",
+];
+const ZONE_STATIONS = {
+  "CENTRAL RAILWAY": CENTRAL_RAILWAY_STATIONS,
+  "EAST CENTRAL RAILWAY": [],
+  "EASTERN RAILWAY": [],
+  "NORTH CENTRAL RAILWAY": [],
+  "SOUTH CENTRAL RAILWAY": [],
+  "SOUTH WESTERN RAILWAY": [],
+  "WEST CENTRAL RAILWAY": [],
+  "WESTERN RAILWAY": [],
+};
 
 const emptyForm = {
   zone: "",
@@ -171,7 +273,7 @@ const VersionHistoryModal = ({ record, onClose }) => {
   );
 };
 
-const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo, stationOptions }) => {
+const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
 
@@ -259,9 +361,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo, stationO
     await onSubmit(form, record?.srNo || nextSrNo);
   };
 
-  const activeStationOptions = form.zone
-    ? Array.from(new Set(stationOptions.filter((item) => item.zone === form.zone).map((item) => item.station))).sort((a, b) => a.localeCompare(b))
-    : [];
+  const activeStationOptions = form.zone ? ZONE_STATIONS[form.zone] || [] : [];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 p-4">
@@ -442,18 +542,13 @@ const DesignCheckingPage = () => {
     loadRecords();
   }, []);
 
-  const stationOptions = useMemo(
-    () =>
-      records
-        .filter((record) => record.zone && record.station)
-        .map((record) => ({ zone: record.zone, station: record.station })),
-    [records]
-  );
-
   const availableStations = useMemo(() => {
-    const source = zoneFilter === "ALL" ? stationOptions : stationOptions.filter((item) => item.zone === zoneFilter);
-    return Array.from(new Set(source.map((item) => item.station))).sort((a, b) => a.localeCompare(b));
-  }, [stationOptions, zoneFilter]);
+    if (zoneFilter === "ALL") {
+      return [];
+    }
+
+    return ZONE_STATIONS[zoneFilter] || [];
+  }, [zoneFilter]);
 
   const filteredRecords = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -669,7 +764,7 @@ const DesignCheckingPage = () => {
         </div>
       )}
 
-      <DesignRecordModal open={modalOpen} onClose={() => { setModalOpen(false); setSelectedRecord(null); }} onSubmit={handleSave} record={selectedRecord} nextSrNo={nextSrNo} stationOptions={stationOptions} />
+      <DesignRecordModal open={modalOpen} onClose={() => { setModalOpen(false); setSelectedRecord(null); }} onSubmit={handleSave} record={selectedRecord} nextSrNo={nextSrNo} />
       <VersionHistoryModal record={historyRecord} onClose={() => setHistoryRecord(null)} />
       <ConfirmationModal open={Boolean(deleteTarget)} title="Delete design record?" description="This removes the selected design workflow entry and its version history from the application database." confirmLabel="Delete Record" onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} />
     </AppShell>

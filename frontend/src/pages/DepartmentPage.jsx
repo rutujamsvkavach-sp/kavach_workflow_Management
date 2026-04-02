@@ -14,6 +14,7 @@ import { recordsApi } from "../services/api";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
 import DesignCheckingPage from "./DesignCheckingPage";
+import WorksAttendancePage from "./WorksAttendancePage";
 
 const DepartmentPage = () => {
   const { departmentName } = useParams();
@@ -22,6 +23,9 @@ const DepartmentPage = () => {
 
   if (department === "DESIGN CHECKING") {
     return <DesignCheckingPage />;
+  }
+  if (department === "WORKS") {
+    return <WorksAttendancePage />;
   }
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");

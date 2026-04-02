@@ -93,6 +93,53 @@ const designMetaSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const workMetaSchema = new mongoose.Schema(
+  {
+    attendanceDate: {
+      type: String,
+      trim: true,
+    },
+    checkInTime: {
+      type: String,
+      trim: true,
+    },
+    checkOutTime: {
+      type: String,
+      trim: true,
+    },
+    staffName: {
+      type: String,
+      trim: true,
+    },
+    staffId: {
+      type: String,
+      trim: true,
+    },
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
+    accuracy: {
+      type: Number,
+    },
+    locationLabel: {
+      type: String,
+      trim: true,
+    },
+    purpose: {
+      type: String,
+      trim: true,
+    },
+    remarks: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
 const departmentRecordSchema = new mongoose.Schema(
   {
     department: {
@@ -116,6 +163,10 @@ const departmentRecordSchema = new mongoose.Schema(
     },
     designMeta: {
       type: designMetaSchema,
+      default: undefined,
+    },
+    workMeta: {
+      type: workMetaSchema,
       default: undefined,
     },
     versionHistory: {
