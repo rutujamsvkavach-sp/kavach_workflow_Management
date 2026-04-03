@@ -24,6 +24,8 @@ const mapEntry = (entry) => ({
   updatedByName: entry.updatedByName,
   updatedAt: entry.updatedAt,
   createdAt: entry.createdAt,
+  deletedAt: entry.deletedAt,
+  deletedByName: entry.deletedByName || "",
 });
 
 export const dprQueryValidation = [query("date").notEmpty().withMessage("Date is required.").isISO8601().withMessage("Date must be valid.")];
@@ -48,7 +50,7 @@ export const dprIdValidation = [param("id").trim().notEmpty().withMessage("DPR e
 export const getDprEntries = async (req, res, next) => {
   try {
     const reportDate = normalizeDate(req.query.date);
-    const rows = await DprEntry.find({ reportDate }).sort({ department: 1, updatedAt: -1 }).lean();
+    const rows = await DprEntry.find({ reportDate, deletedAt: null }).sort({ department: 1, updatedAt: -1 }).lean();
 
     res.json({
       success: true,
@@ -69,6 +71,7 @@ export const getDprEntriesByRange = async (req, res, next) => {
         $gte: startDate,
         $lte: endDate,
       },
+      deletedAt: null,
     })
       .sort({ reportDate: -1, department: 1, updatedAt: -1 })
       .lean();
@@ -144,7 +147,15 @@ export const updateDprEntry = async (req, res, next) => {
 
 export const deleteDprEntry = async (req, res, next) => {
   try {
-    const deleted = await DprEntry.findByIdAndDelete(req.params.id).lean();
+    const deleted = await DprEntry.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: null },
+      {
+        deletedAt: new Date(),
+        deletedByUserId: req.user.id,
+        deletedByName: req.user.name,
+      },
+      { new: true }
+    ).lean();
 
     if (!deleted) {
       const error = new Error("DPR row not found.");
@@ -155,6 +166,47 @@ export const deleteDprEntry = async (req, res, next) => {
     res.json({
       success: true,
       message: "DPR row deleted successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDeletedDprEntries = async (_req, res, next) => {
+  try {
+    const rows = await DprEntry.find({ deletedAt: { $ne: null } }).sort({ deletedAt: -1 }).lean();
+
+    res.json({
+      success: true,
+      data: rows.map(mapEntry),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreDprEntry = async (req, res, next) => {
+  try {
+    const restored = await DprEntry.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: { $ne: null } },
+      {
+        deletedAt: null,
+        deletedByUserId: null,
+        deletedByName: "",
+      },
+      { new: true }
+    ).lean();
+
+    if (!restored) {
+      const error = new Error("Deleted DPR row not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      message: "DPR row restored successfully.",
+      data: mapEntry(restored),
     });
   } catch (error) {
     next(error);

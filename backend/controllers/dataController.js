@@ -325,6 +325,8 @@ const mapRecordResponse = (row) => ({
   anonymous: Boolean(row.anonymous),
   createdBy: row.anonymous ? "Anonymous" : row.createdBy,
   createdAt: row.createdAt,
+  deletedAt: row.deletedAt,
+  deletedByName: row.deletedByName || "",
 });
 
 export const dataValidation = [
@@ -348,11 +350,15 @@ export const dataIdValidation = [param("id").trim().notEmpty().withMessage("Reco
 export const dataQueryValidation = [
   query("department").optional().trim(),
   query("search").optional().trim(),
+  query("includeDeleted").optional().isBoolean().withMessage("includeDeleted must be true or false."),
+  query("deletedOnly").optional().isBoolean().withMessage("deletedOnly must be true or false."),
 ];
 
 export const getData = async (req, res, next) => {
   try {
     const { department, search } = req.query;
+    const includeDeleted = req.query.includeDeleted === "true";
+    const deletedOnly = req.query.deletedOnly === "true";
     const queryFilter = {};
 
     if (department) {
@@ -430,8 +436,26 @@ export const getData = async (req, res, next) => {
       ];
     }
 
+    if (deletedOnly) {
+      if (req.user.role !== "admin") {
+        const error = new Error("Only admins can view deleted records.");
+        error.statusCode = 403;
+        throw error;
+      }
+
+      queryFilter.deletedAt = { $ne: null };
+    } else if (includeDeleted && req.user.role === "admin") {
+      queryFilter.deletedAt = undefined;
+    } else {
+      queryFilter.deletedAt = null;
+    }
+
     if (req.user.role === "staff") {
       queryFilter.createdByUserId = req.user.id;
+    }
+
+    if (queryFilter.deletedAt === undefined) {
+      delete queryFilter.deletedAt;
     }
 
     const rows = await DepartmentRecord.find(queryFilter).sort({ createdAt: -1 }).lean();
@@ -532,7 +556,15 @@ export const updateData = async (req, res, next) => {
 
 export const deleteData = async (req, res, next) => {
   try {
-    const deleted = await DepartmentRecord.findByIdAndDelete(req.params.id).lean();
+    const deleted = await DepartmentRecord.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: null },
+      {
+        deletedAt: new Date(),
+        deletedByUserId: req.user.id,
+        deletedByName: req.user.name,
+      },
+      { new: true }
+    ).lean();
 
     if (!deleted) {
       const error = new Error("Record not found.");
@@ -543,6 +575,34 @@ export const deleteData = async (req, res, next) => {
     res.json({
       success: true,
       message: "Record deleted successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreData = async (req, res, next) => {
+  try {
+    const restored = await DepartmentRecord.findOneAndUpdate(
+      { _id: req.params.id, deletedAt: { $ne: null } },
+      {
+        deletedAt: null,
+        deletedByUserId: null,
+        deletedByName: "",
+      },
+      { new: true }
+    ).lean();
+
+    if (!restored) {
+      const error = new Error("Deleted record not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      message: "Record restored successfully.",
+      data: mapRecordResponse(restored),
     });
   } catch (error) {
     next(error);

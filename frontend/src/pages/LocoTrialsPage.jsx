@@ -16,6 +16,7 @@ import AppShell from "../components/layout/AppShell";
 import ConfirmationModal from "../components/ui/ConfirmationModal";
 import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
+import { useAuth } from "../context/AuthContext";
 import { uploadApi, recordsApi } from "../services/api";
 import { getFileName, getFileUrl } from "../utils/files";
 
@@ -256,6 +257,8 @@ const LocoTrialModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
 };
 
 const LocoTrialsPage = () => {
+  const { user } = useAuth();
+  const canDelete = user?.role === "admin";
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -444,10 +447,12 @@ const LocoTrialsPage = () => {
                             <Pencil size={14} />
                             Edit
                           </button>
-                          <button type="button" onClick={() => setDeleteTarget(record)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700">
-                            <Trash2 size={14} />
-                            Delete
-                          </button>
+                          {canDelete ? (
+                            <button type="button" onClick={() => setDeleteTarget(record)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700">
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -467,7 +472,7 @@ const LocoTrialsPage = () => {
 
       <LocoTrialModal open={modalOpen} onClose={() => { setModalOpen(false); setSelectedRecord(null); }} onSubmit={handleSave} record={selectedRecord} nextSrNo={nextSrNo} />
 
-      <ConfirmationModal open={Boolean(deleteTarget)} title="Delete loco trial row?" description="This will permanently remove the selected loco trial row." confirmLabel="Delete Trial" onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} />
+      {canDelete ? <ConfirmationModal open={Boolean(deleteTarget)} title="Delete loco trial row?" description="This moves the selected loco trial row to the admin restore bin." confirmLabel="Delete Trial" onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} /> : null}
     </AppShell>
   );
 };

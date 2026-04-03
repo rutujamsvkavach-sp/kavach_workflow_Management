@@ -41,6 +41,8 @@ export const recordsApi = {
   create: (payload) => api.post("/data", payload),
   update: (id, payload) => api.put(`/data/${id}`, payload),
   remove: (id) => api.delete(`/data/${id}`),
+  restore: (id) => api.put(`/data/${id}/restore`),
+  getDeleted: (params) => api.get("/data", { params: { ...params, deletedOnly: true } }),
 };
 
 export const dprApi = {
@@ -49,6 +51,8 @@ export const dprApi = {
   create: (payload) => api.post("/dpr", payload),
   update: (id, payload) => api.put(`/dpr/${id}`, payload),
   remove: (id) => api.delete(`/dpr/${id}`),
+  restore: (id) => api.put(`/dpr/${id}/restore`),
+  getDeleted: () => api.get("/dpr/deleted"),
 };
 
 export const uploadApi = {

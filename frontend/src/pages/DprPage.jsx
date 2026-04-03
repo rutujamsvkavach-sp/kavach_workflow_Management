@@ -6,6 +6,7 @@ import AppShell from "../components/layout/AppShell";
 import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import { departments } from "../constants/departments";
+import { useAuth } from "../context/AuthContext";
 import { dprApi } from "../services/api";
 
 const DPR_ROW_FIELDS = [
@@ -75,6 +76,8 @@ const buildExcelTableMarkup = (rows) => {
 };
 
 const DprPage = () => {
+  const { user } = useAuth();
+  const canDelete = user?.role === "admin";
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [searchValue, setSearchValue] = useState("");
   const [rows, setRows] = useState([]);
@@ -222,7 +225,7 @@ const DprPage = () => {
       <PageHeader
         eyebrow="Daily Progress Report"
         title="DPR Daily Responsibility Sheet"
-        description="Change the calendar date to load that day's DPR rows. Any signed-in user can update, add, or remove the entries for the selected day."
+        description="Change the calendar date to load that day's DPR rows. Any signed-in user can add and update entries for the selected day. Delete and restore are admin-only."
         action={
           <div className="flex flex-wrap gap-3">
             <button
@@ -341,15 +344,17 @@ const DprPage = () => {
                             <Save size={14} />
                             {savingRowId === row.id ? "Saving..." : "Save"}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteRow(row)}
-                            disabled={deletingRowId === row.id}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-                          >
-                            <Trash2 size={14} />
-                            {deletingRowId === row.id ? "Deleting..." : "Delete"}
-                          </button>
+                          {canDelete ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRow(row)}
+                              disabled={deletingRowId === row.id}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              <Trash2 size={14} />
+                              {deletingRowId === row.id ? "Deleting..." : "Delete"}
+                            </button>
+                          ) : null}
                           {!row.isDraft ? (
                             <p className="text-xs leading-5 text-slate-500">Last updated by {row.updatedByName}</p>
                           ) : (

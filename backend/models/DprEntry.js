@@ -52,6 +52,20 @@ const dprEntrySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    deletedByName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: true,
