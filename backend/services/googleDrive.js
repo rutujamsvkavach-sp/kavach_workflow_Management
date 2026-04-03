@@ -17,7 +17,15 @@ const toBase64Url = (value) =>
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-const getGoogleDrivePrivateKey = () => process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "";
+const getGoogleDrivePrivateKey = () => {
+  const rawValue = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.trim() || "";
+
+  // Render-style env values may be pasted with wrapping quotes.
+  const normalizedValue =
+    rawValue.startsWith('"') && rawValue.endsWith('"') ? rawValue.slice(1, -1) : rawValue;
+
+  return normalizedValue.replace(/\\n/g, "\n");
+};
 
 export const isGoogleDriveConfigured = () =>
   Boolean(process.env.GOOGLE_DRIVE_CLIENT_EMAIL && getGoogleDrivePrivateKey() && process.env.GOOGLE_DRIVE_FOLDER_ID);
