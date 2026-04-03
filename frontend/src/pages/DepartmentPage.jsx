@@ -13,6 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
+import AccountsPage from "./AccountsPage";
 import CivilPage from "./CivilPage";
 import DesignCheckingPage from "./DesignCheckingPage";
 import LocoTrialsPage from "./LocoTrialsPage";
@@ -42,6 +43,9 @@ const DepartmentPage = () => {
   }
   if (department === "CIVIL") {
     return <CivilPage />;
+  }
+  if (department === "ACCOUNTS") {
+    return <AccountsPage />;
   }
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");

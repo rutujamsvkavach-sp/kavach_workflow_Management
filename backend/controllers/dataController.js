@@ -210,6 +210,25 @@ const normalizeTelecomMeta = (value) => {
   };
 };
 
+const normalizeAccountsMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const srNo = Number(value.srNo);
+
+  return {
+    srNo: Number.isFinite(srNo) ? srNo : undefined,
+    contractName: String(value.contractName || "").trim(),
+    account: String(value.account || "").trim(),
+    category: String(value.category || "").trim(),
+    activity: String(value.activity || "").trim(),
+    document: String(value.document || "").trim(),
+    revision: String(value.revision || "").trim(),
+    status: String(value.status || "").trim(),
+  };
+};
+
 const normalizeCivilFieldValue = (value) => {
   if (!value) {
     return undefined;
@@ -282,6 +301,7 @@ const mapRecordResponse = (row) => ({
   locoMeta: row.locoMeta,
   siteImageMeta: row.siteImageMeta,
   telecomMeta: row.telecomMeta,
+  accountsMeta: row.accountsMeta,
   civilMeta: row.civilMeta,
   versionHistory: normalizeVersionHistory(row.versionHistory),
   anonymous: Boolean(row.anonymous),
@@ -299,6 +319,7 @@ export const dataValidation = [
   body("locoMeta").optional().isObject().withMessage("Loco metadata must be a valid object."),
   body("siteImageMeta").optional().isObject().withMessage("Site image metadata must be a valid object."),
   body("telecomMeta").optional().isObject().withMessage("Telecom metadata must be a valid object."),
+  body("accountsMeta").optional().isObject().withMessage("Accounts metadata must be a valid object."),
   body("civilMeta").optional().isObject().withMessage("Civil metadata must be a valid object."),
   body("versionHistory").optional(),
 ];
@@ -356,6 +377,13 @@ export const getData = async (req, res, next) => {
         { "telecomMeta.wavelength": { $regex: search, $options: "i" } },
         { "telecomMeta.testBy": { $regex: search, $options: "i" } },
         { "telecomMeta.remark": { $regex: search, $options: "i" } },
+        { "accountsMeta.contractName": { $regex: search, $options: "i" } },
+        { "accountsMeta.account": { $regex: search, $options: "i" } },
+        { "accountsMeta.category": { $regex: search, $options: "i" } },
+        { "accountsMeta.activity": { $regex: search, $options: "i" } },
+        { "accountsMeta.document": { $regex: search, $options: "i" } },
+        { "accountsMeta.revision": { $regex: search, $options: "i" } },
+        { "accountsMeta.status": { $regex: search, $options: "i" } },
         { "civilMeta.section.text": { $regex: search, $options: "i" } },
         { "civilMeta.stationLcGate.text": { $regex: search, $options: "i" } },
         { "civilMeta.tentativeGadRailway.text": { $regex: search, $options: "i" } },
@@ -408,6 +436,7 @@ export const createData = async (req, res, next) => {
       locoMeta: normalizeLocoMeta(req.body.locoMeta),
       siteImageMeta: normalizeSiteImageMeta(req.body.siteImageMeta),
       telecomMeta: normalizeTelecomMeta(req.body.telecomMeta),
+      accountsMeta: normalizeAccountsMeta(req.body.accountsMeta),
       civilMeta: normalizeCivilMeta(req.body.civilMeta),
       versionHistory: normalizeVersionHistory(req.body.versionHistory),
       anonymous: Boolean(req.body.anonymous),
@@ -453,6 +482,7 @@ export const updateData = async (req, res, next) => {
         locoMeta: normalizeLocoMeta(req.body.locoMeta),
         siteImageMeta: normalizeSiteImageMeta(req.body.siteImageMeta),
         telecomMeta: normalizeTelecomMeta(req.body.telecomMeta),
+        accountsMeta: normalizeAccountsMeta(req.body.accountsMeta),
         civilMeta: normalizeCivilMeta(req.body.civilMeta),
         versionHistory: normalizeVersionHistory(req.body.versionHistory),
         anonymous: Boolean(req.body.anonymous),

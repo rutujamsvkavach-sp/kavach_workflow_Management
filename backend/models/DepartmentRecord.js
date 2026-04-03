@@ -231,6 +231,43 @@ const telecomMetaSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const accountsMetaSchema = new mongoose.Schema(
+  {
+    srNo: {
+      type: Number,
+    },
+    contractName: {
+      type: String,
+      trim: true,
+    },
+    account: {
+      type: String,
+      trim: true,
+    },
+    category: {
+      type: String,
+      trim: true,
+    },
+    activity: {
+      type: String,
+      trim: true,
+    },
+    document: {
+      type: String,
+      trim: true,
+    },
+    revision: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      trim: true,
+    },
+  },
+  { _id: false }
+);
+
 const civilFieldValueSchema = new mongoose.Schema(
   {
     text: {
@@ -377,6 +414,10 @@ const departmentRecordSchema = new mongoose.Schema(
     },
     telecomMeta: {
       type: telecomMetaSchema,
+      default: undefined,
+    },
+    accountsMeta: {
+      type: accountsMetaSchema,
       default: undefined,
     },
     civilMeta: {
