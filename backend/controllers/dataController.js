@@ -289,6 +289,23 @@ const normalizeCivilMeta = (value) => {
   };
 };
 
+const normalizeTagPlacementMeta = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const srNo = Number(value.srNo);
+
+  return {
+    srNo: Number.isFinite(srNo) ? srNo : undefined,
+    phase: String(value.phase || "").trim(),
+    blockSection: String(value.blockSection || "").trim(),
+    station: String(value.station || "").trim(),
+    documents: normalizeAttachments(value.documents),
+    images: normalizeAttachments(value.images),
+  };
+};
+
 const mapRecordResponse = (row) => ({
   id: String(row._id),
   department: row.department,
@@ -303,6 +320,7 @@ const mapRecordResponse = (row) => ({
   telecomMeta: row.telecomMeta,
   accountsMeta: row.accountsMeta,
   civilMeta: row.civilMeta,
+  tagPlacementMeta: row.tagPlacementMeta,
   versionHistory: normalizeVersionHistory(row.versionHistory),
   anonymous: Boolean(row.anonymous),
   createdBy: row.anonymous ? "Anonymous" : row.createdBy,
@@ -321,6 +339,7 @@ export const dataValidation = [
   body("telecomMeta").optional().isObject().withMessage("Telecom metadata must be a valid object."),
   body("accountsMeta").optional().isObject().withMessage("Accounts metadata must be a valid object."),
   body("civilMeta").optional().isObject().withMessage("Civil metadata must be a valid object."),
+  body("tagPlacementMeta").optional().isObject().withMessage("Tag placement metadata must be a valid object."),
   body("versionHistory").optional(),
 ];
 
@@ -405,6 +424,9 @@ export const getData = async (req, res, next) => {
         { "civilMeta.fourthStageInspection.text": { $regex: search, $options: "i" } },
         { "civilMeta.cableLayingTowerToRelayRoom.text": { $regex: search, $options: "i" } },
         { "civilMeta.earthing.text": { $regex: search, $options: "i" } },
+        { "tagPlacementMeta.phase": { $regex: search, $options: "i" } },
+        { "tagPlacementMeta.blockSection": { $regex: search, $options: "i" } },
+        { "tagPlacementMeta.station": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -438,6 +460,7 @@ export const createData = async (req, res, next) => {
       telecomMeta: normalizeTelecomMeta(req.body.telecomMeta),
       accountsMeta: normalizeAccountsMeta(req.body.accountsMeta),
       civilMeta: normalizeCivilMeta(req.body.civilMeta),
+      tagPlacementMeta: normalizeTagPlacementMeta(req.body.tagPlacementMeta),
       versionHistory: normalizeVersionHistory(req.body.versionHistory),
       anonymous: Boolean(req.body.anonymous),
       createdBy: req.user.name,
@@ -484,6 +507,7 @@ export const updateData = async (req, res, next) => {
         telecomMeta: normalizeTelecomMeta(req.body.telecomMeta),
         accountsMeta: normalizeAccountsMeta(req.body.accountsMeta),
         civilMeta: normalizeCivilMeta(req.body.civilMeta),
+        tagPlacementMeta: normalizeTagPlacementMeta(req.body.tagPlacementMeta),
         versionHistory: normalizeVersionHistory(req.body.versionHistory),
         anonymous: Boolean(req.body.anonymous),
       },

@@ -375,6 +375,35 @@ const civilMetaSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const tagPlacementMetaSchema = new mongoose.Schema(
+  {
+    srNo: {
+      type: Number,
+    },
+    phase: {
+      type: String,
+      trim: true,
+    },
+    blockSection: {
+      type: String,
+      trim: true,
+    },
+    station: {
+      type: String,
+      trim: true,
+    },
+    documents: {
+      type: [attachmentSchema],
+      default: [],
+    },
+    images: {
+      type: [attachmentSchema],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
 const departmentRecordSchema = new mongoose.Schema(
   {
     department: {
@@ -422,6 +451,10 @@ const departmentRecordSchema = new mongoose.Schema(
     },
     civilMeta: {
       type: civilMetaSchema,
+      default: undefined,
+    },
+    tagPlacementMeta: {
+      type: tagPlacementMetaSchema,
       default: undefined,
     },
     versionHistory: {

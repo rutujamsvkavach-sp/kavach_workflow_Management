@@ -18,6 +18,7 @@ import CivilPage from "./CivilPage";
 import DesignCheckingPage from "./DesignCheckingPage";
 import LocoTrialsPage from "./LocoTrialsPage";
 import SiteWorkImagesPage from "./SiteWorkImagesPage";
+import TagPlacementPlansPage from "./TagPlacementPlansPage";
 import TelecomRecordsPage from "./TelecomRecordsPage";
 import WorksAttendancePage from "./WorksAttendancePage";
 
@@ -46,6 +47,9 @@ const DepartmentPage = () => {
   }
   if (department === "ACCOUNTS") {
     return <AccountsPage />;
+  }
+  if (department === "TAG PLACEMENT PLANS") {
+    return <TagPlacementPlansPage />;
   }
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");
