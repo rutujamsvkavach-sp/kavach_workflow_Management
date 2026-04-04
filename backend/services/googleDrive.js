@@ -20,11 +20,43 @@ const toBase64Url = (value) =>
 const getGoogleDrivePrivateKey = () => {
   const rawValue = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.trim() || "";
 
-  // Render-style env values may be pasted with wrapping quotes.
-  const normalizedValue =
-    rawValue.startsWith('"') && rawValue.endsWith('"') ? rawValue.slice(1, -1) : rawValue;
+  if (!rawValue) {
+    return "";
+  }
 
-  return normalizedValue.replace(/\\n/g, "\n");
+  let normalizedValue = rawValue;
+
+  // Accept a whole JSON blob pasted into the env value.
+  if (normalizedValue.startsWith("{")) {
+    try {
+      const parsedValue = JSON.parse(normalizedValue);
+      normalizedValue = parsedValue.private_key || normalizedValue;
+    } catch {
+      // Fall through and try looser parsing below.
+    }
+  }
+
+  // Accept a copied JSON property snippet such as: "private_key": "..."
+  const privateKeyMatch = normalizedValue.match(/"private_key"\s*:\s*"([\s\S]*?)"(?:\s*,|\s*$)/);
+  if (privateKeyMatch?.[1]) {
+    normalizedValue = privateKeyMatch[1];
+  }
+
+  normalizedValue = normalizedValue.replace(/^GOOGLE_DRIVE_PRIVATE_KEY\s*=\s*/i, "").trim();
+
+  if (
+    (normalizedValue.startsWith('"') && normalizedValue.endsWith('"')) ||
+    (normalizedValue.startsWith("'") && normalizedValue.endsWith("'"))
+  ) {
+    normalizedValue = normalizedValue.slice(1, -1);
+  }
+
+  return normalizedValue
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "")
+    .trim();
 };
 
 export const isGoogleDriveConfigured = () =>
