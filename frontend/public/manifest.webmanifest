@@ -1,7 +1,7 @@
 {
   "name": "Kavach Workflow Management",
   "short_name": "Kavach",
-  "description": "Installable Indian Railway workflow management system for DPR, documents, department operations, and staff coordination.",
+  "description": "Installable Kavach workflow management system for DPR, documents, department operations, and staff coordination.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

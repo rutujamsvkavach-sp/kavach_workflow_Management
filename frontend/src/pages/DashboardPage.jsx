@@ -61,7 +61,7 @@ const DashboardPage = () => {
     >
       <PageHeader
         eyebrow="Overview"
-        title="Railway Workflow Dashboard"
+        title="Workflow Dashboard"
         description="Track department activity, documentation flow, and staff contributions across the kavach_workflow Management command center."
       />
 

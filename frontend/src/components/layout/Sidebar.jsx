@@ -1,7 +1,7 @@
 import { Menu, ShieldCheck } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
-import logo from "../../assets/indian-logo.png";
+import logo from "../../assets/kavach-logo.jpeg";
 import { departments } from "../../constants/departments";
 
 const Sidebar = ({ open, onToggle, user }) => {
@@ -33,10 +33,10 @@ const Sidebar = ({ open, onToggle, user }) => {
       >
         <div className="flex items-center gap-4 border-b border-white/10 pb-5">
           <div className="rounded-lg bg-white/5 p-2">
-            <img src={logo} alt="Indian Railways" className="h-14 w-14 rounded-lg object-contain" />
+            <img src={logo} alt="Kavach System" className="h-14 w-14 rounded-lg object-contain" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Indian Railways</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Secure Operations</p>
             <h2 className="mt-1 font-display text-2xl">kavach_workflow Management</h2>
           </div>
         </div>

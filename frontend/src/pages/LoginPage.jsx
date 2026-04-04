@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import logo from "../assets/indian-logo.png";
+import logo from "../assets/kavach-logo.jpeg";
 import { useAuth } from "../context/AuthContext";
 
 const initialRegisterState = {
@@ -55,10 +55,10 @@ const LoginPage = () => {
           <div className="relative">
             <div className="flex items-center gap-4">
               <div className="rounded-[24px] bg-white/10 p-3">
-                <img src={logo} alt="Indian Railways" className="h-20 w-20 object-contain" />
+                <img src={logo} alt="Kavach System" className="h-20 w-20 object-contain" />
               </div>
               <div>
-                <p className="text-sm uppercase tracking-[0.35em] text-white/60">Railway Workflow</p>
+                <p className="text-sm uppercase tracking-[0.35em] text-white/60">Secure Workflow</p>
                 <h1 className="mt-2 font-display text-4xl">kavach_workflow Management</h1>
               </div>
             </div>
@@ -69,7 +69,7 @@ const LoginPage = () => {
                   Secure Operations Hub
                 </p>
                 <h2 className="mt-6 max-w-xl font-display text-5xl leading-tight">
-                  Indian Railway workflow tracking built for departments, documents, and delivery control.
+                  Workflow tracking built for departments, documents, and delivery control.
                 </h2>
                 <p className="mt-6 max-w-xl text-base leading-7 text-white/75">
                   Monitor DPR updates, design approvals, site images, and field records through a single secure command center.
