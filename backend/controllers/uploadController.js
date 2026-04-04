@@ -18,32 +18,32 @@ export const uploadFiles = async (req, res, next) => {
     }
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const files = isGoogleDriveConfigured()
+    const files = isCloudinaryConfigured()
       ? await Promise.all(
-          req.files.map((file) =>
-            uploadBufferToGoogleDrive(file.buffer, {
-              fileName: file.originalname,
-              mimeType: file.mimetype,
-            })
-          )
-        )
-      : isCloudinaryConfigured()
-        ? await Promise.all(
-            req.files.map(async (file) => {
-              const result = await uploadBufferToCloudinary(
-                file.buffer,
-                process.env.CLOUDINARY_FOLDER || "kavach",
-                getResourceType(file.mimetype)
-              );
+          req.files.map(async (file) => {
+            const result = await uploadBufferToCloudinary(
+              file.buffer,
+              process.env.CLOUDINARY_FOLDER || "kavach",
+              getResourceType(file.mimetype)
+            );
 
-              return {
-                name: file.originalname,
-                url: result.secure_url,
-                type: file.mimetype,
-                size: file.size,
-                provider: "cloudinary",
-              };
-            })
+            return {
+              name: file.originalname,
+              url: result.secure_url,
+              type: file.mimetype,
+              size: file.size,
+              provider: "cloudinary",
+            };
+          })
+        )
+      : isGoogleDriveConfigured()
+        ? await Promise.all(
+            req.files.map((file) =>
+              uploadBufferToGoogleDrive(file.buffer, {
+                fileName: file.originalname,
+                mimeType: file.mimetype,
+              })
+            )
           )
         : req.files.map((file) => ({
             name: file.originalname,
