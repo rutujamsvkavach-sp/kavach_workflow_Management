@@ -10,6 +10,7 @@ const defaultState = {
   department: departments[0],
   title: "",
   description: "",
+  documentLink: "",
   fileUrl: [],
   anonymous: false,
 };
@@ -24,6 +25,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
         department: record.department,
         title: record.title,
         description: record.description,
+        documentLink: record.documentLink || "",
         fileUrl: record.files || [],
         anonymous: Boolean(record.anonymous),
       });
@@ -125,6 +127,17 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
               required
               className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
               placeholder="Describe the workflow update, progress, dependencies, and next action."
+            />
+          </label>
+
+          <label className="space-y-2 text-sm font-medium text-body">
+            Data Link
+            <input
+              type="url"
+              value={form.documentLink}
+              onChange={(event) => setForm((current) => ({ ...current, documentLink: event.target.value }))}
+              className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+              placeholder="Paste a stored document or folder link"
             />
           </label>
 

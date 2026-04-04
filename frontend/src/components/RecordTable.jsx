@@ -1,4 +1,4 @@
-import { Download, Pencil, Trash2 } from "lucide-react";
+import { Download, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { getFileName, getFileUrl } from "../utils/files";
 
 const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
@@ -25,6 +25,17 @@ const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
                 <td className="max-w-sm px-4 py-4 align-top text-sm leading-6 text-slate-600">{record.description}</td>
                 <td className="px-4 py-4 align-top">
                   <div className="space-y-2">
+                    {record.documentLink ? (
+                      <a
+                        href={record.documentLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                      >
+                        <ExternalLink size={14} />
+                        <span className="max-w-[180px] truncate">Open saved link</span>
+                      </a>
+                    ) : null}
                     {record.files?.length ? (
                       record.files.map((file) => (
                         <a
@@ -39,7 +50,7 @@ const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
                         </a>
                       ))
                     ) : (
-                      <span className="text-sm text-slate-400">No files</span>
+                      <span className="text-sm text-slate-400">{record.documentLink ? "No files" : "No files or links"}</span>
                     )}
                   </div>
                 </td>
