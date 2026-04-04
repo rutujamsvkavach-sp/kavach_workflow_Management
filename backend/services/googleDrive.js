@@ -10,6 +10,25 @@ let accessTokenCache = {
   expiresAt: 0,
 };
 
+const normalizeEnvValue = (value, keyName) => {
+  const rawValue = value?.trim() || "";
+
+  if (!rawValue) {
+    return "";
+  }
+
+  let normalizedValue = rawValue.replace(new RegExp(`^${keyName}\\s*=\\s*`, "i"), "").trim();
+
+  if (
+    (normalizedValue.startsWith('"') && normalizedValue.endsWith('"')) ||
+    (normalizedValue.startsWith("'") && normalizedValue.endsWith("'"))
+  ) {
+    normalizedValue = normalizedValue.slice(1, -1);
+  }
+
+  return normalizedValue.trim();
+};
+
 const toBase64Url = (value) =>
   Buffer.from(typeof value === "string" ? value : JSON.stringify(value))
     .toString("base64")
@@ -44,7 +63,7 @@ const normalizePemBlock = (value) => {
 };
 
 const getGoogleDrivePrivateKey = () => {
-  const rawValue = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.trim() || "";
+  const rawValue = normalizeEnvValue(process.env.GOOGLE_DRIVE_PRIVATE_KEY, "GOOGLE_DRIVE_PRIVATE_KEY");
 
   if (!rawValue) {
     return "";
@@ -67,16 +86,6 @@ const getGoogleDrivePrivateKey = () => {
   if (privateKeyMatch?.[1]) {
     normalizedValue = privateKeyMatch[1];
   }
-
-  normalizedValue = normalizedValue.replace(/^GOOGLE_DRIVE_PRIVATE_KEY\s*=\s*/i, "").trim();
-
-  if (
-    (normalizedValue.startsWith('"') && normalizedValue.endsWith('"')) ||
-    (normalizedValue.startsWith("'") && normalizedValue.endsWith("'"))
-  ) {
-    normalizedValue = normalizedValue.slice(1, -1);
-  }
-
   return normalizePemBlock(
     normalizedValue
     .replace(/\\r\\n/g, "\n")
@@ -87,15 +96,21 @@ const getGoogleDrivePrivateKey = () => {
   );
 };
 
+const getGoogleDriveClientEmail = () =>
+  normalizeEnvValue(process.env.GOOGLE_DRIVE_CLIENT_EMAIL, "GOOGLE_DRIVE_CLIENT_EMAIL");
+
+const getGoogleDriveFolderId = () =>
+  normalizeEnvValue(process.env.GOOGLE_DRIVE_FOLDER_ID, "GOOGLE_DRIVE_FOLDER_ID");
+
 export const isGoogleDriveConfigured = () =>
-  Boolean(process.env.GOOGLE_DRIVE_CLIENT_EMAIL && getGoogleDrivePrivateKey() && process.env.GOOGLE_DRIVE_FOLDER_ID);
+  Boolean(getGoogleDriveClientEmail() && getGoogleDrivePrivateKey() && getGoogleDriveFolderId());
 
 const createSignedJwt = () => {
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + 3600;
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
-    iss: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
+    iss: getGoogleDriveClientEmail(),
     scope: DRIVE_SCOPE,
     aud: GOOGLE_TOKEN_URL,
     iat: issuedAt,
@@ -171,7 +186,7 @@ export const uploadBufferToGoogleDrive = async (buffer, { fileName, mimeType }) 
   const boundary = `kavach-${crypto.randomUUID()}`;
   const metadata = {
     name: fileName,
-    parents: [process.env.GOOGLE_DRIVE_FOLDER_ID],
+    parents: [getGoogleDriveFolderId()],
   };
 
   const uploadResponse = await fetch(
