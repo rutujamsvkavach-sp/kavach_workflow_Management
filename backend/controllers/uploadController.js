@@ -1,4 +1,5 @@
 import { isCloudinaryConfigured, uploadBufferToCloudinary } from "../services/cloudinary.js";
+import { isGcsConfigured, uploadBufferToGcs } from "../services/googleCloudStorage.js";
 import { isGoogleDriveConfigured, uploadBufferToGoogleDrive } from "../services/googleDrive.js";
 
 const getResourceType = (mimeType) => {
@@ -18,7 +19,16 @@ export const uploadFiles = async (req, res, next) => {
     }
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const files = isCloudinaryConfigured()
+    const files = isGcsConfigured()
+      ? await Promise.all(
+          req.files.map((file) =>
+            uploadBufferToGcs(file.buffer, {
+              fileName: file.originalname,
+              mimeType: file.mimetype,
+            })
+          )
+        )
+      : isCloudinaryConfigured()
       ? await Promise.all(
           req.files.map(async (file) => {
             const result = await uploadBufferToCloudinary(
