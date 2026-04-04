@@ -17,6 +17,32 @@ const toBase64Url = (value) =>
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
+const reflowPemBody = (body) => body.match(/.{1,64}/g)?.join("\n") || body;
+
+const normalizePemBlock = (value) => {
+  const pemMatch = value.match(/-----BEGIN PRIVATE KEY-----[\s\S]+?-----END PRIVATE KEY-----/);
+
+  if (!pemMatch) {
+    return value;
+  }
+
+  const lines = pemMatch[0]
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 3) {
+    return pemMatch[0];
+  }
+
+  const header = lines[0];
+  const footer = lines.at(-1);
+  const body = lines.slice(1, -1).join("").replace(/\s+/g, "");
+
+  return `${header}\n${reflowPemBody(body)}\n${footer}`;
+};
+
 const getGoogleDrivePrivateKey = () => {
   const rawValue = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.trim() || "";
 
@@ -51,12 +77,14 @@ const getGoogleDrivePrivateKey = () => {
     normalizedValue = normalizedValue.slice(1, -1);
   }
 
-  return normalizedValue
+  return normalizePemBlock(
+    normalizedValue
     .replace(/\\r\\n/g, "\n")
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "")
-    .trim();
+    .trim()
+  );
 };
 
 export const isGoogleDriveConfigured = () =>
@@ -82,8 +110,13 @@ const createSignedJwt = () => {
   signer.update(unsignedToken);
   signer.end();
 
+  const privateKey = crypto.createPrivateKey({
+    key: getGoogleDrivePrivateKey(),
+    format: "pem",
+  });
+
   const signature = signer
-    .sign(getGoogleDrivePrivateKey(), "base64")
+    .sign(privateKey, "base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
