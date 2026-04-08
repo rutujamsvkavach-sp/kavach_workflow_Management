@@ -30,10 +30,10 @@ const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
                         href={record.documentLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
                       >
                         <ExternalLink size={14} />
-                        <span className="max-w-[180px] truncate">Open saved link</span>
+                        <span>Open</span>
                       </a>
                     ) : null}
                     {record.files?.length ? (
@@ -43,10 +43,10 @@ const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
                           href={getFileUrl(file)}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                          className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
                         >
                           <Download size={14} />
-                          <span className="max-w-[180px] truncate">{getFileName(file)}</span>
+                          <span className="max-w-[180px] truncate">Download {getFileName(file)}</span>
                         </a>
                       ))
                     ) : (

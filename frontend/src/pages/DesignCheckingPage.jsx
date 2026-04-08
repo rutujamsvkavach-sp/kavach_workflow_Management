@@ -1,5 +1,6 @@
 import {
   Download,
+  ExternalLink,
   FileSpreadsheet,
   History,
   Paperclip,
@@ -144,6 +145,7 @@ const emptyForm = {
   category: "",
   activity: "",
   document: "",
+  documentLink: "",
   revision: "",
   status: "",
   files: [],
@@ -175,6 +177,7 @@ const buildRecordPayload = (form, srNo) => ({
     category: form.category,
     activity: form.activity,
     document: form.document,
+    documentLink: form.documentLink,
     revision: form.revision,
     status: form.status,
   },
@@ -190,6 +193,7 @@ const normalizeRecord = (record, fallbackIndex) => ({
   category: record.designMeta?.category || "",
   activity: record.designMeta?.activity || "",
   document: record.designMeta?.document || record.title || "",
+  documentLink: record.designMeta?.documentLink || "",
   revision: record.designMeta?.revision || "",
   status: record.designMeta?.status || "",
   files: record.files || [],
@@ -197,7 +201,7 @@ const normalizeRecord = (record, fallbackIndex) => ({
 });
 
 const buildExcelTableMarkup = (records) => {
-  const headers = ["Sr.No.", "Contract Name", "Activity", "Document", "Revision", "Status"];
+  const headers = ["Sr.No.", "Contract Name", "Activity", "Document", "Document Link", "Revision", "Status"];
   const rows = records
     .map(
       (record) => `
@@ -206,6 +210,7 @@ const buildExcelTableMarkup = (records) => {
         <td>${record.contractName}</td>
         <td>${record.activity}</td>
         <td>${record.document}</td>
+        <td>${record.documentLink || ""}</td>
         <td>${record.revision}</td>
         <td>${record.status}</td>
       </tr>
@@ -250,6 +255,17 @@ const VersionHistoryModal = ({ record, onClose }) => {
                   </p>
                 </div>
                 <div className="mt-3 space-y-2">
+                  {version.documentLink ? (
+                    <a
+                      href={version.documentLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                    >
+                      <ExternalLink size={14} />
+                      Open saved link
+                    </a>
+                  ) : null}
                   {version.files.map((file) => (
                     <a
                       key={`${getFileUrl(file)}-${getFileName(file)}`}
@@ -291,6 +307,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         category: record.category,
         activity: record.activity,
         document: record.document,
+        documentLink: record.documentLink || "",
         revision: record.revision,
         status: record.status,
         files: record.files || [],
@@ -334,6 +351,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
               {
                 version: current.revision,
                 files: current.files,
+                documentLink: current.documentLink,
                 uploadedAt: new Date().toISOString(),
                 uploadedBy: "Record update",
               },
@@ -444,7 +462,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
             </label>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
             <label className="space-y-2 text-sm font-medium text-body">
               Activity
               <input type="text" value={form.activity} onChange={(event) => setForm((current) => ({ ...current, activity: event.target.value }))} required className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" />
@@ -452,6 +470,16 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
             <label className="space-y-2 text-sm font-medium text-body">
               Document
               <input type="text" value={form.document} onChange={(event) => setForm((current) => ({ ...current, document: event.target.value }))} required className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" />
+            </label>
+            <label className="space-y-2 text-sm font-medium text-body">
+              Document Link
+              <input
+                type="url"
+                value={form.documentLink}
+                onChange={(event) => setForm((current) => ({ ...current, documentLink: event.target.value }))}
+                className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                placeholder="https://example.com/design-file"
+              />
             </label>
             <label className="space-y-2 text-sm font-medium text-body">
               Revision
@@ -567,6 +595,7 @@ const DesignCheckingPage = () => {
           record.contractName,
           record.activity,
           record.document,
+          record.documentLink,
           record.revision,
           record.status,
           record.zone,
@@ -622,9 +651,9 @@ const DesignCheckingPage = () => {
   };
 
   const handleExportCsv = () => {
-    const headers = ["Sr.No.", "Contract Name", "Activity", "Document", "Revision", "Status"];
+    const headers = ["Sr.No.", "Contract Name", "Activity", "Document", "Document Link", "Revision", "Status"];
     const rows = filteredRecords.map((record) =>
-      [record.srNo, record.contractName, record.activity, record.document, record.revision, record.status].map(csvEscape).join(",")
+      [record.srNo, record.contractName, record.activity, record.document, record.documentLink || "", record.revision, record.status].map(csvEscape).join(",")
     );
 
     downloadBlob([headers.join(","), ...rows].join("\n"), "design-checking.csv", "text/csv;charset=utf-8;");
@@ -728,6 +757,17 @@ const DesignCheckingPage = () => {
                       <td className="px-4 py-4 align-top">
                         <div className="space-y-2">
                           <p className="font-semibold text-body">{record.document}</p>
+                          {record.documentLink ? (
+                            <a
+                              href={record.documentLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                            >
+                              <ExternalLink size={14} />
+                              Open saved link
+                            </a>
+                          ) : null}
                           {record.files.length ? record.files.map((file) => (
                             <a key={`${getFileUrl(file)}-${getFileName(file)}`} href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
                               <Download size={14} />
