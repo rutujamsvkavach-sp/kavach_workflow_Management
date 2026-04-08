@@ -29,6 +29,7 @@ const truncateUrl = (value, maxLength = 52) => {
 };
 const uploadModes = [
   { value: "file", label: "Upload File" },
+  { value: "image", label: "Upload Image" },
   { value: "link", label: "Use Link (URL)" },
 ];
 
@@ -50,7 +51,13 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
         title: record.title,
         description: record.description,
         documentLink: record.documentLink || "",
-        documentType: record.documentType === "link" || (record.documentLink && !record.files?.length) ? "link" : "file",
+        documentType:
+          record.documentType === "link" || (record.documentLink && !record.files?.length)
+            ? "link"
+            : record.documentType === "image" ||
+                (record.files || []).some((file) => String(file?.type || "").startsWith("image/"))
+              ? "image"
+              : "file",
         fileUrl: record.files || [],
         anonymous: Boolean(record.anonymous),
       });
@@ -68,7 +75,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
   }
 
   const handleUpload = async (event) => {
-    if (form.documentType !== "file") {
+    if (form.documentType === "link") {
       return;
     }
 
@@ -91,9 +98,9 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
         fileUrl: [...current.fileUrl, ...uploaded],
       }));
       setErrors((current) => ({ ...current, documentSource: "" }));
-      toast.success("Files uploaded successfully.");
+      toast.success(`${form.documentType === "image" ? "Images" : "Files"} uploaded successfully.`);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to upload files.");
+      toast.error(error.response?.data?.message || `Failed to upload ${form.documentType === "image" ? "images" : "files"}.`);
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -104,7 +111,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
     setForm((current) => ({
       ...current,
       documentType,
-      fileUrl: documentType === "file" ? current.fileUrl : [],
+      fileUrl: documentType === "link" ? [] : current.fileUrl,
       documentLink: documentType === "link" ? current.documentLink : "",
     }));
     setErrors((current) => ({ ...current, documentSource: "", documentLink: "" }));
@@ -116,8 +123,8 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
     const trimmedLink = form.documentLink.trim();
     const nextErrors = {};
 
-    if (form.documentType === "file" && !form.fileUrl.length) {
-      nextErrors.documentSource = "Please upload at least one file.";
+    if (form.documentType !== "link" && !form.fileUrl.length) {
+      nextErrors.documentSource = `Please upload at least one ${form.documentType === "image" ? "image" : "file"}.`;
     }
 
     if (form.documentType === "link") {
@@ -225,7 +232,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
               })}
             </div>
 
-            {form.documentType === "file" ? (
+            {form.documentType !== "link" ? (
               <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div className="flex items-center gap-3">
@@ -233,13 +240,24 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
                       <UploadCloud size={22} />
                     </div>
                     <div>
-                      <p className="font-semibold text-body">Upload File</p>
-                      <p className="text-sm text-slate-500">Maximum 5 files per upload request, up to 10 MB each.</p>
+                      <p className="font-semibold text-body">{form.documentType === "image" ? "Upload Image" : "Upload File"}</p>
+                      <p className="text-sm text-slate-500">
+                        {form.documentType === "image"
+                          ? "Upload screenshots, photos, or image proof files."
+                          : "Upload documents, spreadsheets, PDFs, or supporting files."}{" "}
+                        Maximum 5 files per upload request, up to 10 MB each.
+                      </p>
                     </div>
                   </div>
                   <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
-                    {uploading ? "Uploading..." : "Select Files"}
-                    <input type="file" multiple accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp" className="hidden" onChange={handleUpload} />
+                    {uploading ? "Uploading..." : form.documentType === "image" ? "Select Images" : "Select Files"}
+                    <input
+                      type="file"
+                      multiple
+                      accept={form.documentType === "image" ? "image/*" : ".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.doc,.docx"}
+                      className="hidden"
+                      onChange={handleUpload}
+                    />
                   </label>
                 </div>
 
@@ -269,7 +287,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-slate-500">No files selected yet.</p>
+                  <p className="mt-4 text-sm text-slate-500">No {form.documentType === "image" ? "images" : "files"} selected yet.</p>
                 )}
               </div>
             ) : (

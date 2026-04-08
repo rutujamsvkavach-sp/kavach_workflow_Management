@@ -50,7 +50,9 @@ const RecordTable = ({ records, canDelete, onEdit, onDelete }) => (
                         </a>
                       ))
                     ) : (
-                      <span className="text-sm text-slate-400">{record.documentType === "link" ? "Link only" : "No files"}</span>
+                      <span className="text-sm text-slate-400">
+                        {record.documentType === "link" ? "Link only" : record.documentType === "image" ? "Image only" : "No files"}
+                      </span>
                     )}
                   </div>
                 </td>

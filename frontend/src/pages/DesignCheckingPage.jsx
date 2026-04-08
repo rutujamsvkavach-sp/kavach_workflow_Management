@@ -3,6 +3,7 @@ import {
   ExternalLink,
   FileSpreadsheet,
   History,
+  Image as ImageIcon,
   Link2,
   Paperclip,
   Pencil,
@@ -38,6 +39,7 @@ const CONTRACTS = ["HBL", "IRCON", "MSV"];
 const CATEGORIES = ["QA", "EXECUTION", "APPROVED"];
 const DOCUMENT_TYPE_OPTIONS = [
   { value: "file", label: "Upload File" },
+  { value: "image", label: "Upload Image" },
   { value: "link", label: "Upload Link" },
 ];
 const CENTRAL_RAILWAY_STATIONS = [
@@ -175,11 +177,15 @@ const getDocumentType = (record) => {
     return "link";
   }
 
+  if (record?.designMeta?.documentType === "image" || record?.documentType === "image") {
+    return "image";
+  }
+
   if ((record?.designMeta?.documentLink || record?.documentLink) && !(record?.files || []).length) {
     return "link";
   }
 
-  return "file";
+  return (record?.files || []).some((file) => String(file?.type || "").startsWith("image/")) ? "image" : "file";
 };
 
 const downloadBlob = (content, fileName, mimeType) => {
@@ -366,7 +372,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
   }
 
   const handleUpload = async (event) => {
-    if (form.documentType !== "file") {
+    if (form.documentType === "link") {
       return;
     }
 
@@ -388,7 +394,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         const shouldArchiveCurrent =
           record &&
           current.revision.trim() &&
-          current.documentType === "file" &&
+          current.documentType !== "link" &&
           current.files.length &&
           uploaded.length &&
           JSON.stringify(current.files.map(getFileUrl)) !== JSON.stringify(uploaded.map(getFileUrl));
@@ -410,14 +416,14 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         return {
           ...current,
           files: uploaded,
-          documentLink: current.documentType === "file" ? "" : current.documentLink,
+          documentLink: current.documentType !== "link" ? "" : current.documentLink,
           versionHistory: nextHistory,
         };
       });
 
-      toast.success("Design files uploaded successfully.");
+      toast.success(form.documentType === "image" ? "Design images uploaded successfully." : "Design files uploaded successfully.");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to upload files.");
+      toast.error(error.response?.data?.message || `Failed to upload ${form.documentType === "image" ? "images" : "files"}.`);
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -428,7 +434,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
     setForm((current) => ({
       ...current,
       documentType,
-      files: documentType === "file" ? current.files : [],
+      files: documentType === "link" ? [] : current.files,
       documentLink: documentType === "link" ? current.documentLink : "",
     }));
     setErrors((current) => ({ ...current, documentSource: "", documentLink: "" }));
@@ -438,8 +444,8 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
     event.preventDefault();
     const nextErrors = {};
 
-    if (form.documentType === "file" && !form.files.length) {
-      nextErrors.documentSource = "Please upload at least one file.";
+    if (form.documentType !== "link" && !form.files.length) {
+      nextErrors.documentSource = `Please upload at least one ${form.documentType === "image" ? "image" : "file"}.`;
     }
 
     if (form.documentType === "link") {
@@ -589,31 +595,33 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
               })}
             </div>
 
-            {form.documentType === "file" ? (
-              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 transition">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
-                      <UploadCloud size={22} />
+            {form.documentType !== "link" ? (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 transition">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                        {form.documentType === "image" ? <ImageIcon size={22} /> : <UploadCloud size={22} />}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-body">{form.documentType === "image" ? "Upload Design Image Version" : "Upload Design Document Version"}</p>
+                        <p className="text-sm text-slate-500">
+                          Uploading a new {form.documentType === "image" ? "image" : "file"} replaces the active {form.documentType === "image" ? "image" : "file"} and keeps the old one in version history.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-body">Upload Document</p>
-                      <p className="text-sm text-slate-500">Uploading a new file replaces the active file and keeps the old one in version history.</p>
-                    </div>
+                    <label
+                      className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover"
+                    >
+                      {uploading ? "Uploading..." : form.documentType === "image" ? "Select Images" : "Select Files"}
+                      <input
+                        type="file"
+                        multiple
+                        accept={form.documentType === "image" ? "image/*" : ".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp"}
+                        className="hidden"
+                        onChange={handleUpload}
+                      />
+                    </label>
                   </div>
-                  <label
-                    className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover"
-                  >
-                    {uploading ? "Uploading..." : "Select Files"}
-                    <input
-                      type="file"
-                      multiple
-                      accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
-                      className="hidden"
-                      onChange={handleUpload}
-                    />
-                  </label>
-                </div>
 
                 {form.files.length ? (
                   <div className="mt-4 space-y-2">
@@ -635,7 +643,9 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
                       </div>
                     ))}
                   </div>
-                ) : null}
+                ) : (
+                  <p className="mt-4 text-sm text-slate-500">No {form.documentType === "image" ? "image" : "file"} selected yet.</p>
+                )}
               </div>
             ) : (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 transition">
@@ -904,12 +914,12 @@ const DesignCheckingPage = () => {
                       <td className="px-4 py-4 align-top">
                         <div className="space-y-2">
                           <p className="font-semibold text-body">{record.document}</p>
-                          {record.documentType === "file" && record.files.length ? record.files.map((file) => (
-                            <a key={`${getFileUrl(file)}-${getFileName(file)}`} href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
-                              <Download size={14} />
-                              Download File
-                            </a>
-                          )) : <span className="text-sm text-slate-400">{record.documentType === "link" ? "Link-based document" : "No active document"}</span>}
+                          {record.documentType !== "link" && record.files.length ? record.files.map((file) => (
+                              <a key={`${getFileUrl(file)}-${getFileName(file)}`} href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                                {record.documentType === "image" ? <ImageIcon size={14} /> : <Download size={14} />}
+                                {record.documentType === "image" ? "Open Image" : "Download File"}
+                              </a>
+                            )) : <span className="text-sm text-slate-400">{record.documentType === "link" ? "Link-based document" : "No active document"}</span>}
                         </div>
                       </td>
                       <td className="px-4 py-4 align-top">

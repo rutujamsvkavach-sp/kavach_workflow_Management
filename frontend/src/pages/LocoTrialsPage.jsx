@@ -2,6 +2,8 @@ import {
   Download,
   FileSpreadsheet,
   History,
+  Image as ImageIcon,
+  Link2,
   Pencil,
   Plus,
   Search,
@@ -22,6 +24,11 @@ import { getFileName, getFileUrl } from "../utils/files";
 
 const DEPARTMENT_NAME = "LOCO TRIALS";
 const TRIAL_CONDITIONS = ["HEAD ON", "REAR END", "MANUAL SOS", "UNUSUAL SOS"];
+const DOCUMENT_TYPE_OPTIONS = [
+  { value: "file", label: "Upload File" },
+  { value: "image", label: "Upload Image" },
+  { value: "link", label: "Use Link" },
+];
 
 const emptyForm = {
   trialCondition: "",
@@ -30,6 +37,8 @@ const emptyForm = {
   driver: "",
   doneBy: "",
   remarks: "",
+  documentType: "file",
+  documentLink: "",
   files: [],
 };
 
@@ -70,11 +79,42 @@ const buildExcelTableMarkup = (records) => {
   `;
 };
 
+const isHttpUrl = (value) => /^https?:\/\//i.test(value.trim());
+
+const truncateUrl = (value, limit = 34) => {
+  if (!value || value.length <= limit) {
+    return value || "";
+  }
+
+  return `${value.slice(0, limit - 3)}...`;
+};
+
+const hasImageAttachment = (files = []) =>
+  files.some((file) => {
+    const candidate = `${file?.mimeType || ""} ${getFileName(file)} ${getFileUrl(file)}`.toLowerCase();
+    return candidate.includes("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(candidate);
+  });
+
+const getDocumentType = (record) => {
+  const explicit = record?.locoMeta?.documentType || record?.documentType;
+  if (explicit) {
+    return explicit;
+  }
+
+  if ((record?.locoMeta?.documentLink || record?.documentLink) && !(record?.files || []).length) {
+    return "link";
+  }
+
+  return hasImageAttachment(record?.files) ? "image" : "file";
+};
+
 const buildPayload = (form, srNo) => ({
   department: DEPARTMENT_NAME,
   title: form.locoDetails || `Loco Trial ${srNo}`,
   description: form.remarks || form.trialCondition || "Loco trial record",
-  fileUrl: form.files,
+  fileUrl: form.documentType === "link" ? [] : form.files,
+  documentType: form.documentType,
+  documentLink: form.documentType === "link" ? form.documentLink.trim() : "",
   locoMeta: {
     srNo,
     trialCondition: form.trialCondition,
@@ -83,6 +123,8 @@ const buildPayload = (form, srNo) => ({
     driver: form.driver,
     doneBy: form.doneBy,
     remarks: form.remarks,
+    documentType: form.documentType,
+    documentLink: form.documentType === "link" ? form.documentLink.trim() : "",
   },
 });
 
@@ -95,12 +137,15 @@ const normalizeRecord = (record, index) => ({
   driver: record.locoMeta?.driver || "",
   doneBy: record.locoMeta?.doneBy || "",
   remarks: record.locoMeta?.remarks || record.description || "",
+  documentType: getDocumentType(record),
+  documentLink: record.locoMeta?.documentLink || record.documentLink || "",
   files: record.files || [],
 });
 
 const LocoTrialModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!open) {
@@ -115,12 +160,16 @@ const LocoTrialModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         driver: record.driver,
         doneBy: record.doneBy,
         remarks: record.remarks,
+        documentType: record.documentType || "file",
+        documentLink: record.documentLink || "",
         files: record.files || [],
       });
+      setErrors({});
       return;
     }
 
     setForm(emptyForm);
+    setErrors({});
   }, [open, record]);
 
   if (!open) {
@@ -144,6 +193,7 @@ const LocoTrialModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         ...current,
         files: response.data.data,
       }));
+      setErrors((current) => ({ ...current, documentSource: "" }));
       toast.success("Trial files uploaded.");
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to upload trial files.");
@@ -153,8 +203,35 @@ const LocoTrialModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
     }
   };
 
+  const handleDocumentTypeChange = (documentType) => {
+    setForm((current) => ({
+      ...current,
+      documentType,
+      files: documentType === "link" ? [] : current.files,
+      documentLink: documentType === "link" ? current.documentLink : "",
+    }));
+    setErrors((current) => ({ ...current, documentSource: "", documentLink: "" }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const nextErrors = {};
+
+    if (form.documentType === "link") {
+      if (!form.documentLink.trim()) {
+        nextErrors.documentLink = "Please enter a document URL.";
+      } else if (!isHttpUrl(form.documentLink)) {
+        nextErrors.documentLink = "Please enter a valid URL starting with http:// or https://.";
+      }
+    } else if (!form.files.length) {
+      nextErrors.documentSource = "Please upload at least one file or image.";
+    }
+
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      return;
+    }
+
     await onSubmit(form, record?.srNo || nextSrNo);
   };
 
@@ -209,38 +286,95 @@ const LocoTrialModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
             </label>
           </div>
 
-          <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
-                  <UploadCloud size={22} />
-                </div>
-                <div>
-                  <p className="font-semibold text-body">Upload trial file</p>
-                  <p className="text-sm text-slate-500">Attach one or more files for this loco trial row.</p>
-                </div>
-              </div>
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
-                {uploading ? "Uploading..." : "Select Files"}
-                <input type="file" multiple accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp" className="hidden" onChange={handleUpload} />
-              </label>
+          <div className="rounded-lg border border-border bg-slate-50 p-2">
+            <div className="grid gap-2 md:grid-cols-3">
+              {DOCUMENT_TYPE_OPTIONS.map((option) => {
+                const active = form.documentType === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleDocumentTypeChange(option.value)}
+                    className={`rounded-lg px-4 py-3 text-sm font-semibold transition ${
+                      active ? "bg-primary text-white shadow-sm" : "bg-white text-body hover:bg-slate-100"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
-
-            {form.files.length ? (
-              <div className="mt-4 space-y-2">
-                {form.files.map((file) => (
-                  <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
-                    <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
-                      {getFileName(file)}
-                    </a>
-                    <button type="button" onClick={() => setForm((current) => ({ ...current, files: current.files.filter((item) => getFileUrl(item) !== getFileUrl(file)) }))} className="text-sm font-semibold text-accent">
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
           </div>
+
+          {form.documentType === "link" ? (
+            <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
+              <label className="space-y-2 text-sm font-medium text-body">
+                Document URL
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-white px-4 py-3">
+                  <Link2 size={18} className="text-primary" />
+                  <input
+                    type="url"
+                    value={form.documentLink}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setForm((current) => ({ ...current, documentLink: value }));
+                      setErrors((current) => ({ ...current, documentLink: "" }));
+                    }}
+                    placeholder="Paste Google Drive / OneDrive / Any File Link"
+                    className="w-full border-none bg-transparent text-sm outline-none"
+                  />
+                </div>
+              </label>
+              {errors.documentLink ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentLink}</p> : null}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                    {form.documentType === "image" ? <ImageIcon size={22} /> : <UploadCloud size={22} />}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-body">
+                      {form.documentType === "image" ? "Upload trial image" : "Upload trial file"}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {form.documentType === "image"
+                        ? "Attach one or more images for this loco trial row."
+                        : "Attach one or more files for this loco trial row."}
+                    </p>
+                  </div>
+                </div>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
+                  {uploading ? "Uploading..." : form.documentType === "image" ? "Select Images" : "Select Files"}
+                  <input
+                    type="file"
+                    multiple
+                    accept={form.documentType === "image" ? "image/*" : ".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp"}
+                    className="hidden"
+                    onChange={handleUpload}
+                  />
+                </label>
+              </div>
+
+              {form.files.length ? (
+                <div className="mt-4 space-y-2">
+                  {form.files.map((file) => (
+                    <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
+                      <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
+                        {getFileName(file)}
+                      </a>
+                      <button type="button" onClick={() => setForm((current) => ({ ...current, files: current.files.filter((item) => getFileUrl(item) !== getFileUrl(file)) }))} className="text-sm font-semibold text-accent">
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {errors.documentSource ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentSource}</p> : null}
+            </div>
+          )}
 
           <div className="flex flex-wrap justify-end gap-3">
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-5 py-3 text-sm font-semibold text-body transition hover:bg-slate-50">
@@ -410,7 +544,7 @@ const LocoTrialsPage = () => {
             <table className="min-w-[1200px] divide-y divide-border">
               <thead className="bg-primary text-white">
                 <tr>
-                  {["Sr.No.", "Loco Details", "Trial Date", "Driver", "Done By", "File", "Remarks", "Action"].map((label) => (
+                  {["Sr.No.", "Loco Details", "Trial Date", "Driver", "Done By", "File / Link", "Remarks", "Action"].map((label) => (
                     <th key={label} className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.22em]">
                       {label}
                     </th>
@@ -427,17 +561,22 @@ const LocoTrialsPage = () => {
                       <td className="px-4 py-4 align-top text-sm text-slate-600">{record.driver || "-"}</td>
                       <td className="px-4 py-4 align-top text-sm text-slate-600">{record.doneBy || "-"}</td>
                       <td className="px-4 py-4 align-top">
-                        {record.files.length ? (
+                        {record.documentType === "link" && record.documentLink ? (
+                          <a href={record.documentLink} target="_blank" rel="noreferrer" title={record.documentLink} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                            <Link2 size={14} />
+                            {truncateUrl(record.documentLink)}
+                          </a>
+                        ) : record.files.length ? (
                           <div className="space-y-2">
                             {record.files.map((file) => (
                               <a key={`${getFileUrl(file)}-${getFileName(file)}`} href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
-                                <Download size={14} />
-                                {getFileName(file)}
+                                {record.documentType === "image" ? <ImageIcon size={14} /> : <Download size={14} />}
+                                {record.documentType === "image" ? `Download ${getFileName(file)}` : getFileName(file)}
                               </a>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-sm text-slate-400">No file</span>
+                          <span className="text-sm text-slate-400">No document</span>
                         )}
                       </td>
                       <td className="px-4 py-4 align-top text-sm text-slate-600">{record.remarks || "-"}</td>
@@ -447,6 +586,12 @@ const LocoTrialsPage = () => {
                             <Pencil size={14} />
                             Edit
                           </button>
+                          {record.documentLink ? (
+                            <a href={record.documentLink} target="_blank" rel="noreferrer" title="Open document link" className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-white px-3 py-2 text-xs font-semibold text-primary transition hover:bg-slate-50">
+                              <Link2 size={14} />
+                              View Link
+                            </a>
+                          ) : null}
                           {canDelete ? (
                             <button type="button" onClick={() => setDeleteTarget(record)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700">
                               <Trash2 size={14} />

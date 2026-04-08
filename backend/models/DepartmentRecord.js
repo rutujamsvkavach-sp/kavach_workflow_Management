@@ -38,7 +38,7 @@ const versionHistorySchema = new mongoose.Schema(
     },
     documentType: {
       type: String,
-      enum: ["file", "link"],
+      enum: ["file", "image", "link"],
       trim: true,
       default: "file",
     },
@@ -93,7 +93,7 @@ const designMetaSchema = new mongoose.Schema(
     },
     documentType: {
       type: String,
-      enum: ["file", "link"],
+      enum: ["file", "image", "link"],
       trim: true,
       default: "file",
     },
@@ -156,6 +156,16 @@ const workMetaSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    documentType: {
+      type: String,
+      enum: ["file", "image", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
+      type: String,
+      trim: true,
+    },
   },
   { _id: false }
 );
@@ -189,6 +199,16 @@ const locoMetaSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    documentType: {
+      type: String,
+      enum: ["file", "image", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
+      type: String,
+      trim: true,
+    },
   },
   { _id: false }
 );
@@ -211,6 +231,16 @@ const siteImageMetaSchema = new mongoose.Schema(
       trim: true,
     },
     imageDate: {
+      type: String,
+      trim: true,
+    },
+    documentType: {
+      type: String,
+      enum: ["file", "image", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
       type: String,
       trim: true,
     },
@@ -244,6 +274,16 @@ const telecomMetaSchema = new mongoose.Schema(
       trim: true,
     },
     remark: {
+      type: String,
+      trim: true,
+    },
+    documentType: {
+      type: String,
+      enum: ["file", "image", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
       type: String,
       trim: true,
     },
@@ -284,6 +324,16 @@ const accountsMetaSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    documentType: {
+      type: String,
+      enum: ["file", "image", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
+      type: String,
+      trim: true,
+    },
   },
   { _id: false }
 );
@@ -297,6 +347,16 @@ const civilFieldValueSchema = new mongoose.Schema(
     files: {
       type: [attachmentSchema],
       default: [],
+    },
+    documentType: {
+      type: String,
+      enum: ["file", "image", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
+      type: String,
+      trim: true,
     },
   },
   { _id: false }
@@ -416,6 +476,16 @@ const tagPlacementMetaSchema = new mongoose.Schema(
       type: [attachmentSchema],
       default: [],
     },
+    documentType: {
+      type: String,
+      enum: ["file", "image", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
+      type: String,
+      trim: true,
+    },
     images: {
       type: [attachmentSchema],
       default: [],
@@ -448,7 +518,7 @@ const departmentRecordSchema = new mongoose.Schema(
     },
     documentType: {
       type: String,
-      enum: ["file", "link"],
+      enum: ["file", "image", "link"],
       trim: true,
       default: "file",
     },

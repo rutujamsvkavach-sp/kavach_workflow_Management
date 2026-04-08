@@ -1,6 +1,9 @@
 import {
   Download,
+  ExternalLink,
+  FileImage,
   FileSpreadsheet,
+  Link2,
   Pencil,
   Plus,
   Search,
@@ -20,6 +23,11 @@ import { recordsApi, uploadApi } from "../services/api";
 import { getFileName, getFileUrl } from "../utils/files";
 
 const DEPARTMENT_NAME = "CIVIL";
+const DOCUMENT_TYPE_OPTIONS = [
+  { value: "file", label: "Upload File" },
+  { value: "image", label: "Upload Image" },
+  { value: "link", label: "Use Link (URL)" },
+];
 const FIELD_DEFINITIONS = [
   { key: "section", label: "Section" },
   { key: "stationLcGate", label: "Station / LC Gate" },
@@ -44,7 +52,12 @@ const FIELD_DEFINITIONS = [
   { key: "earthing", label: "Earthing" },
 ];
 
-const createEmptyFieldValue = () => ({ text: "", files: [] });
+const createEmptyFieldValue = () => ({
+  text: "",
+  files: [],
+  documentType: "file",
+  documentLink: "",
+});
 
 const createEmptyForm = () => ({
   ...FIELD_DEFINITIONS.reduce((accumulator, field) => {
@@ -54,6 +67,17 @@ const createEmptyForm = () => ({
 });
 
 const csvEscape = (value) => `"${String(value || "").replace(/"/g, '""')}"`;
+const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
+const isDriveLink = (value) => /drive\.google\.com|docs\.google\.com/i.test(String(value || ""));
+const truncateUrl = (value, maxLength = 42) => {
+  const url = String(value || "").trim();
+
+  if (!url || url.length <= maxLength) {
+    return url;
+  }
+
+  return `${url.slice(0, maxLength - 3)}...`;
+};
 
 const downloadBlob = (content, fileName, mimeType) => {
   const blob = new Blob([content], { type: mimeType });
@@ -65,10 +89,18 @@ const downloadBlob = (content, fileName, mimeType) => {
   URL.revokeObjectURL(url);
 };
 
-const normalizeFieldValue = (value) => ({
-  text: value?.text || "",
-  files: value?.files || [],
-});
+const normalizeFieldValue = (value) => {
+  const files = value?.files || [];
+  const documentLink = value?.documentLink || "";
+  const documentType = value?.documentType || (documentLink ? "link" : "file");
+
+  return {
+    text: value?.text || "",
+    files: documentType === "link" ? [] : files,
+    documentType,
+    documentLink,
+  };
+};
 
 const normalizeRecord = (record, index) => {
   const civilMeta = record.civilMeta || {};
@@ -88,12 +120,16 @@ const buildPayload = (form, srNo) => ({
   department: DEPARTMENT_NAME,
   title: form.section.text || `Civil Row ${srNo}`,
   description: form.stationLcGate.text || "Civil workflow record",
+  documentType: "file",
+  documentLink: "",
   civilMeta: {
     srNo,
     ...FIELD_DEFINITIONS.reduce((accumulator, field) => {
       accumulator[field.key] = {
         text: form[field.key].text,
-        files: form[field.key].files,
+        files: form[field.key].documentType === "link" ? [] : form[field.key].files,
+        documentType: form[field.key].documentType,
+        documentLink: form[field.key].documentType === "link" ? form[field.key].documentLink.trim() : "",
       };
       return accumulator;
     }, {}),
@@ -107,7 +143,12 @@ const buildExcelTableMarkup = (records) => {
       (record) => `
         <tr>
           <td>${record.srNo}</td>
-          ${FIELD_DEFINITIONS.map((field) => `<td>${record.civilMeta[field.key]?.text || ""}</td>`).join("")}
+          ${FIELD_DEFINITIONS.map((field) => {
+            const value = record.civilMeta[field.key];
+            const linkSummary = value?.documentType === "link" && value?.documentLink ? `Link: ${value.documentLink}` : "";
+            const fileSummary = value?.files?.map(getFileName).join(", ");
+            return `<td>${[value?.text || "", linkSummary, fileSummary].filter(Boolean).join(" | ")}</td>`;
+          }).join("")}
         </tr>
       `
     )
@@ -166,7 +207,7 @@ const CivilModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
           files: [...current[fieldKey].files, ...response.data.data],
         },
       }));
-      toast.success("Files uploaded.");
+      toast.success("Attachments uploaded.");
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to upload files.");
     } finally {
@@ -177,6 +218,18 @@ const CivilModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    for (const field of FIELD_DEFINITIONS) {
+      const value = form[field.key];
+      if (value.documentType === "link") {
+        const trimmedLink = value.documentLink.trim();
+        if (trimmedLink && !isHttpUrl(trimmedLink)) {
+          toast.error(`${field.label}: enter a valid http/https link.`);
+          return;
+        }
+      }
+    }
+
     await onSubmit(form, record?.srNo || nextSrNo);
   };
 
@@ -195,72 +248,138 @@ const CivilModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
-            {FIELD_DEFINITIONS.map((field) => (
-              <div key={field.key} className="rounded-lg border border-border bg-white p-4">
-                <label className="block space-y-2 text-sm font-medium text-body">
-                  {field.label}
-                  <textarea
-                    rows={3}
-                    value={form[field.key].text}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        [field.key]: {
-                          ...current[field.key],
-                          text: event.target.value,
-                        },
-                      }))
-                    }
-                    className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                    placeholder={`Add text for ${field.label}`}
-                  />
-                </label>
+            {FIELD_DEFINITIONS.map((field) => {
+              const fieldValue = form[field.key];
 
-                <div className="mt-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-body">Upload file / image</p>
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-hover">
-                      <UploadCloud size={14} />
-                      {uploadingField === field.key ? "Uploading..." : "Upload"}
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
-                        className="hidden"
-                        onChange={(event) => handleFieldUpload(field.key, event)}
-                      />
-                    </label>
-                  </div>
+              return (
+                <div key={field.key} className="rounded-lg border border-border bg-white p-4">
+                  <label className="block space-y-2 text-sm font-medium text-body">
+                    {field.label}
+                    <textarea
+                      rows={3}
+                      value={fieldValue.text}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          [field.key]: {
+                            ...current[field.key],
+                            text: event.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                      placeholder={`Add text for ${field.label}`}
+                    />
+                  </label>
 
-                  {form[field.key].files.length ? (
-                    <div className="mt-3 space-y-2">
-                      {form[field.key].files.map((file) => (
-                        <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
-                          <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
-                            {getFileName(file)}
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() =>
+                  <div className="mt-4 space-y-3">
+                    <div className="inline-flex rounded-full border border-primary/15 bg-primary/5 p-1">
+                      {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                        <button
+                          key={`${field.key}-${option.value}`}
+                          type="button"
+                          onClick={() =>
+                            setForm((current) => ({
+                              ...current,
+                              [field.key]: {
+                                ...current[field.key],
+                                documentType: option.value,
+                                documentLink: option.value === "link" ? current[field.key].documentLink : "",
+                                files: option.value === "link" ? [] : current[field.key].files,
+                              },
+                            }))
+                          }
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                            fieldValue.documentType === option.value ? "bg-primary text-white shadow-sm" : "text-primary/80 hover:text-primary"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {fieldValue.documentType === "link" ? (
+                      <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+                        <label className="block space-y-2 text-sm font-medium text-body">
+                          Document URL
+                          <input
+                            type="url"
+                            value={fieldValue.documentLink}
+                            onChange={(event) =>
                               setForm((current) => ({
                                 ...current,
                                 [field.key]: {
                                   ...current[field.key],
-                                  files: current[field.key].files.filter((item) => getFileUrl(item) !== getFileUrl(file)),
+                                  documentLink: event.target.value,
                                 },
                               }))
                             }
-                            className="text-sm font-semibold text-accent"
-                          >
-                            Remove
-                          </button>
+                            placeholder="Paste Google Drive / OneDrive / Any File Link"
+                            className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                          />
+                        </label>
+                        {fieldValue.documentLink.trim() ? (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+                              <Link2 size={12} />
+                              {truncateUrl(fieldValue.documentLink)}
+                            </span>
+                            {isDriveLink(fieldValue.documentLink) ? (
+                              <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">Drive Link</span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-body">{fieldValue.documentType === "image" ? "Upload image" : "Upload file"}</p>
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-hover">
+                            {fieldValue.documentType === "image" ? <FileImage size={14} /> : <UploadCloud size={14} />}
+                            {uploadingField === field.key ? "Uploading..." : fieldValue.documentType === "image" ? "Upload Image" : "Upload File"}
+                            <input
+                              type="file"
+                              multiple
+                              accept={fieldValue.documentType === "image" ? "image/*" : ".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp"}
+                              className="hidden"
+                              onChange={(event) => handleFieldUpload(field.key, event)}
+                            />
+                          </label>
                         </div>
-                      ))}
-                    </div>
-                  ) : null}
+
+                        {fieldValue.files.length ? (
+                          <div className="mt-3 space-y-2">
+                            {fieldValue.files.map((file) => (
+                              <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
+                                <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 truncate text-sm font-medium text-primary hover:underline">
+                                  {fieldValue.documentType === "image" ? <FileImage size={14} /> : <Download size={14} />}
+                                  {getFileName(file)}
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setForm((current) => ({
+                                      ...current,
+                                      [field.key]: {
+                                        ...current[field.key],
+                                        files: current[field.key].files.filter((item) => getFileUrl(item) !== getFileUrl(file)),
+                                      },
+                                    }))
+                                  }
+                                  className="text-sm font-semibold text-accent"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap justify-end gap-3">
@@ -315,7 +434,10 @@ const CivilPage = () => {
         return FIELD_DEFINITIONS.some((field) => {
           const value = record.civilMeta[field.key];
           const fileNames = (value?.files || []).map(getFileName).join(" ");
-          return `${value?.text || ""} ${fileNames}`.toLowerCase().includes(normalizedSearch);
+          return [value?.text || "", fileNames, value?.documentLink || "", value?.documentType || ""]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedSearch);
         });
       })
       .map((record, index) => ({ ...record, srNo: index + 1 }));
@@ -364,7 +486,15 @@ const CivilPage = () => {
   const handleExportCsv = () => {
     const headers = ["Sr No", ...FIELD_DEFINITIONS.map((field) => field.label)];
     const rows = filteredRecords.map((record) =>
-      [record.srNo, ...FIELD_DEFINITIONS.map((field) => record.civilMeta[field.key]?.text || "")]
+      [
+        record.srNo,
+        ...FIELD_DEFINITIONS.map((field) => {
+          const value = record.civilMeta[field.key];
+          const linkSummary = value?.documentType === "link" && value?.documentLink ? `Link: ${value.documentLink}` : "";
+          const fileSummary = value?.files?.map(getFileName).join(" | ");
+          return [value?.text || "", linkSummary, fileSummary].filter(Boolean).join(" | ");
+        }),
+      ]
         .map(csvEscape)
         .join(",")
     );
@@ -381,7 +511,7 @@ const CivilPage = () => {
       <PageHeader
         eyebrow="Civil Workflow"
         title="CIVIL"
-        description="Manage civil progress rows with text, file uploads, image uploads, search, export, and download support."
+        description="Manage civil progress rows with text, file uploads, image uploads, and link-based references without changing the row structure."
         action={
           <div className="flex flex-wrap gap-3">
             <button
@@ -424,7 +554,7 @@ const CivilPage = () => {
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search section, station, tower, inspection, files, or remarks"
+              placeholder="Search section, station, tower, inspection, files, images, or links"
               className="w-full border-none bg-transparent text-sm outline-none"
             />
           </div>
@@ -459,7 +589,23 @@ const CivilPage = () => {
                           <td key={field.key} className="px-4 py-4 align-top">
                             <div className="space-y-2 text-sm text-slate-600">
                               <p>{value?.text || "-"}</p>
-                              {value?.files?.length ? (
+                              {value?.documentType === "link" && value?.documentLink ? (
+                                <div className="space-y-1">
+                                  <a
+                                    href={value.documentLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title={value.documentLink}
+                                    className="inline-flex max-w-full items-center gap-2 rounded-full bg-primary/5 px-3 py-1 font-medium text-primary hover:bg-primary/10"
+                                  >
+                                    <ExternalLink size={14} />
+                                    <span className="truncate">{truncateUrl(value.documentLink)}</span>
+                                  </a>
+                                  {isDriveLink(value.documentLink) ? (
+                                    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Drive Link</span>
+                                  ) : null}
+                                </div>
+                              ) : value?.files?.length ? (
                                 <div className="space-y-1">
                                   {value.files.map((file) => (
                                     <a
@@ -469,8 +615,8 @@ const CivilPage = () => {
                                       rel="noreferrer"
                                       className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
                                     >
-                                      <Download size={14} />
-                                      {getFileName(file)}
+                                      {value.documentType === "image" ? <FileImage size={14} /> : <Download size={14} />}
+                                      {value.documentType === "image" ? "Open Image" : "Download File"}
                                     </a>
                                   ))}
                                 </div>
@@ -492,6 +638,23 @@ const CivilPage = () => {
                             <Pencil size={14} />
                             Edit
                           </button>
+                          {FIELD_DEFINITIONS.some((field) => record.civilMeta[field.key]?.documentType === "link" && record.civilMeta[field.key]?.documentLink) ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const firstLinkField = FIELD_DEFINITIONS.find(
+                                  (field) => record.civilMeta[field.key]?.documentType === "link" && record.civilMeta[field.key]?.documentLink
+                                );
+                                if (firstLinkField) {
+                                  window.open(record.civilMeta[firstLinkField.key].documentLink, "_blank", "noopener,noreferrer");
+                                }
+                              }}
+                              className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                            >
+                              <Link2 size={14} />
+                              View Link
+                            </button>
+                          ) : null}
                           {canDelete ? (
                             <button
                               type="button"

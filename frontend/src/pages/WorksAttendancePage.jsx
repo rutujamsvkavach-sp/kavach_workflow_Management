@@ -1,7 +1,10 @@
 import {
   Camera,
   Download,
+  ExternalLink,
+  FileImage,
   FileSpreadsheet,
+  Link2,
   MapPinned,
   Pencil,
   Plus,
@@ -22,6 +25,11 @@ import { recordsApi, uploadApi } from "../services/api";
 import { getFileName, getFileUrl } from "../utils/files";
 
 const DEPARTMENT_NAME = "WORKS";
+const DOCUMENT_TYPE_OPTIONS = [
+  { value: "image", label: "Upload Image" },
+  { value: "file", label: "Upload File" },
+  { value: "link", label: "Use Link (URL)" },
+];
 
 const emptyForm = {
   attendanceDate: new Date().toISOString().slice(0, 10),
@@ -32,10 +40,23 @@ const emptyForm = {
   longitude: "",
   accuracy: "",
   purpose: "",
+  documentType: "image",
+  documentLink: "",
   files: [],
 };
 
 const csvEscape = (value) => `"${String(value || "").replace(/"/g, '""')}"`;
+const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
+const truncateUrl = (value, maxLength = 42) => {
+  const url = String(value || "").trim();
+
+  if (!url || url.length <= maxLength) {
+    return url;
+  }
+
+  return `${url.slice(0, maxLength - 3)}...`;
+};
+const isDriveLink = (value) => /drive\.google\.com|docs\.google\.com/i.test(String(value || ""));
 
 const downloadBlob = (content, fileName, mimeType) => {
   const blob = new Blob([content], { type: mimeType });
@@ -48,7 +69,7 @@ const downloadBlob = (content, fileName, mimeType) => {
 };
 
 const buildExcelTableMarkup = (records) => {
-  const headers = ["Sr.No.", "Staff Name", "GPS Location", "In Time", "Out Time", "Purpose"];
+  const headers = ["Sr.No.", "Staff Name", "GPS Location", "In Time", "Out Time", "Purpose", "Document Type", "Document Link"];
   const rows = records
     .map(
       (record) => `
@@ -59,6 +80,8 @@ const buildExcelTableMarkup = (records) => {
           <td>${record.checkInTime}</td>
           <td>${record.checkOutTime}</td>
           <td>${record.purpose}</td>
+          <td>${record.documentType}</td>
+          <td>${record.documentLink || ""}</td>
         </tr>
       `
     )
@@ -76,7 +99,9 @@ const buildPayload = (form, user) => ({
   department: DEPARTMENT_NAME,
   title: `${user.name} Attendance`,
   description: form.purpose || `${user.name} daily attendance`,
-  fileUrl: form.files,
+  documentType: form.documentType,
+  documentLink: form.documentType === "link" ? form.documentLink.trim() : "",
+  fileUrl: form.documentType === "link" ? [] : form.files,
   workMeta: {
     attendanceDate: form.attendanceDate,
     checkInTime: form.checkInTime,
@@ -88,6 +113,8 @@ const buildPayload = (form, user) => ({
     accuracy: form.accuracy ? Number(form.accuracy) : undefined,
     locationLabel: form.locationLabel,
     purpose: form.purpose,
+    documentType: form.documentType,
+    documentLink: form.documentType === "link" ? form.documentLink.trim() : "",
   },
 });
 
@@ -97,6 +124,9 @@ const normalizeRecord = (record, index) => {
   const accuracy = record.workMeta?.accuracy;
   const label = record.workMeta?.locationLabel || "";
   const gpsLocation = latitude && longitude ? `${latitude}, ${longitude}${accuracy ? ` (${accuracy}m)` : ""}` : label || "-";
+
+  const documentType = record.workMeta?.documentType || record.documentType || (record.documentLink ? "link" : "image");
+  const documentLink = record.workMeta?.documentLink || record.documentLink || "";
 
   return {
     ...record,
@@ -112,6 +142,8 @@ const normalizeRecord = (record, index) => {
     locationLabel: label,
     gpsLocation,
     purpose: record.workMeta?.purpose || record.description || "",
+    documentType,
+    documentLink,
     files: record.files || [],
   };
 };
@@ -120,6 +152,7 @@ const AttendanceModal = ({ open, onClose, onSubmit, record, user }) => {
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
   const [capturingLocation, setCapturingLocation] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!open) {
@@ -136,6 +169,8 @@ const AttendanceModal = ({ open, onClose, onSubmit, record, user }) => {
         longitude: record.longitude ?? "",
         accuracy: record.accuracy ?? "",
         purpose: record.purpose || "",
+        documentType: record.documentType || "image",
+        documentLink: record.documentLink || "",
         files: record.files || [],
       });
       return;
@@ -151,10 +186,20 @@ const AttendanceModal = ({ open, onClose, onSubmit, record, user }) => {
     return null;
   }
 
-  const handleSelfieUpload = async (event) => {
+  const handleSourceChange = (documentType) => {
+    setForm((current) => ({
+      ...current,
+      documentType,
+      documentLink: documentType === "link" ? current.documentLink : "",
+      files: documentType === "link" ? [] : current.files,
+    }));
+    setErrors((current) => ({ ...current, documentSource: "", documentLink: "" }));
+  };
+
+  const handleProofUpload = async (event) => {
     const files = event.target.files;
 
-    if (!files?.length) {
+    if (!files?.length || form.documentType === "link") {
       return;
     }
 
@@ -167,10 +212,11 @@ const AttendanceModal = ({ open, onClose, onSubmit, record, user }) => {
       setForm((current) => ({
         ...current,
         files: response.data.data,
+        documentLink: "",
       }));
-      toast.success("Selfie uploaded.");
+      toast.success(form.documentType === "image" ? "Selfie / image uploaded." : "Document uploaded.");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Unable to upload selfie.");
+      toast.error(error.response?.data?.message || "Unable to upload proof.");
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -206,6 +252,25 @@ const AttendanceModal = ({ open, onClose, onSubmit, record, user }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const nextErrors = {};
+
+    if (form.documentType === "link") {
+      if (!form.documentLink.trim()) {
+        nextErrors.documentLink = "Please enter a document URL.";
+      } else if (!isHttpUrl(form.documentLink)) {
+        nextErrors.documentLink = "Please enter a valid URL starting with http:// or https://.";
+      }
+    } else if (!form.files.length) {
+      nextErrors.documentSource = `Please ${form.documentType === "image" ? "upload a selfie or image." : "upload at least one file."}`;
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length) {
+      toast.error("Please complete the attendance proof source.");
+      return;
+    }
+
     await onSubmit(form);
   };
 
@@ -266,37 +331,106 @@ const AttendanceModal = ({ open, onClose, onSubmit, record, user }) => {
             <textarea rows={4} value={form.purpose} onChange={(event) => setForm((current) => ({ ...current, purpose: event.target.value }))} placeholder="Enter today’s attendance purpose or work objective" className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" />
           </label>
 
-          <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
-                  <Camera size={22} />
-                </div>
-                <div>
-                  <p className="font-semibold text-body">Upload Selfie</p>
-                  <p className="text-sm text-slate-500">Attach selfie images for attendance proof.</p>
-                </div>
-              </div>
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
-                {uploading ? "Uploading..." : "Select Selfie"}
-                <input type="file" multiple accept="image/*" capture="user" className="hidden" onChange={handleSelfieUpload} />
-              </label>
+          <div className="rounded-2xl border border-primary/10 bg-white p-5 shadow-soft">
+            <div className="mb-4 flex flex-wrap gap-3">
+              {DOCUMENT_TYPE_OPTIONS.map((option) => {
+                const isActive = form.documentType === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleSourceChange(option.value)}
+                    className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      isActive ? "bg-primary text-white shadow-sm" : "border border-border bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
 
-            {form.files.length ? (
-              <div className="mt-4 space-y-2">
-                {form.files.map((file) => (
-                  <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
-                    <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
-                      {getFileName(file)}
-                    </a>
-                    <button type="button" onClick={() => setForm((current) => ({ ...current, files: current.files.filter((item) => getFileUrl(item) !== getFileUrl(file)) }))} className="text-sm font-semibold text-accent">
-                      Remove
-                    </button>
+            {form.documentType === "link" ? (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 transition">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                    <Link2 size={22} />
                   </div>
-                ))}
+                  <div>
+                    <p className="font-semibold text-body">Use attendance proof link</p>
+                    <p className="text-sm text-slate-500">Paste a Google Drive, OneDrive, or any public attendance proof link.</p>
+                  </div>
+                </div>
+                <label className="space-y-2 text-sm font-medium text-body">
+                  Document URL
+                  <input
+                    type="url"
+                    value={form.documentLink}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setForm((current) => ({ ...current, documentLink: value }));
+                      setErrors((current) => ({ ...current, documentLink: "" }));
+                    }}
+                    placeholder="Paste Google Drive / OneDrive / Any File Link"
+                    className="w-full rounded-lg border border-border bg-white px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  />
+                </label>
+                {form.documentLink && isDriveLink(form.documentLink) ? (
+                  <div className="mt-3 inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    Drive Link
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+            ) : (
+              <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                      {form.documentType === "image" ? <Camera size={22} /> : <FileImage size={22} />}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-body">{form.documentType === "image" ? "Upload Selfie / Image" : "Upload Proof File"}</p>
+                      <p className="text-sm text-slate-500">
+                        {form.documentType === "image"
+                          ? "Attach selfie or image proof for attendance."
+                          : "Attach document proof such as PDF, Excel, or image file."}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
+                    {uploading ? "Uploading..." : form.documentType === "image" ? "Select Selfie" : "Select File"}
+                    <input
+                      type="file"
+                      multiple
+                      accept={form.documentType === "image" ? "image/*" : ".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,.jpeg,.webp"}
+                      capture={form.documentType === "image" ? "user" : undefined}
+                      className="hidden"
+                      onChange={handleProofUpload}
+                    />
+                  </label>
+                </div>
+
+                {form.files.length ? (
+                  <div className="mt-4 space-y-2">
+                    {form.files.map((file) => (
+                      <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
+                        <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 truncate text-sm font-medium text-primary hover:underline">
+                          {form.documentType === "image" ? <Camera size={14} /> : <FileImage size={14} />}
+                          {getFileName(file)}
+                        </a>
+                        <button type="button" onClick={() => setForm((current) => ({ ...current, files: current.files.filter((item) => getFileUrl(item) !== getFileUrl(file)) }))} className="text-sm font-semibold text-accent">
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {errors.documentSource ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentSource}</p> : null}
+            {errors.documentLink ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentLink}</p> : null}
           </div>
 
           <div className="flex flex-wrap justify-end gap-3">
@@ -353,7 +487,7 @@ const WorksAttendancePage = () => {
           return true;
         }
 
-        return [record.staffName, record.gpsLocation, record.checkInTime, record.checkOutTime, record.purpose]
+        return [record.staffName, record.gpsLocation, record.checkInTime, record.checkOutTime, record.purpose, record.documentType, record.documentLink, ...record.files.map(getFileName)]
           .join(" ")
           .toLowerCase()
           .includes(normalized);
@@ -397,9 +531,9 @@ const WorksAttendancePage = () => {
   };
 
   const handleExportCsv = () => {
-    const headers = ["Sr.No.", "Staff Name", "GPS Location", "In Time", "Out Time", "Purpose"];
+    const headers = ["Sr.No.", "Staff Name", "GPS Location", "In Time", "Out Time", "Purpose", "Document Type", "Document Link"];
     const rows = filteredRecords.map((record) =>
-      [record.srNo, record.staffName, record.gpsLocation, record.checkInTime, record.checkOutTime, record.purpose].map(csvEscape).join(",")
+      [record.srNo, record.staffName, record.gpsLocation, record.checkInTime, record.checkOutTime, record.purpose, record.documentType, record.documentLink].map(csvEscape).join(",")
     );
 
     downloadBlob([headers.join(","), ...rows].join("\n"), `works-attendance-${selectedDate || "all"}.csv`, "text/csv;charset=utf-8;");
@@ -418,7 +552,7 @@ const WorksAttendancePage = () => {
       <PageHeader
         eyebrow="Works Attendance"
         title="WORKS"
-        description="Manage staff daily attendance with calendar filtering, GPS location, in and out timing, purpose tracking, selfie proof, and export tools."
+        description="Manage staff daily attendance with calendar filtering, GPS location, in and out timing, purpose tracking, and proof capture through images, files, or saved links."
         action={
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={handleExportCsv} className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary transition hover:bg-primary/10">
@@ -454,10 +588,10 @@ const WorksAttendancePage = () => {
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary/70">Visible Rows</p>
               <p className="mt-3 font-display text-4xl text-body">{filteredRecords.length}</p>
             </div>
-            <div className="rounded-lg border border-border bg-card p-5 shadow-soft">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary/70">Selfies</p>
-              <p className="mt-3 font-display text-4xl text-body">{dateFilteredRecords.reduce((sum, record) => sum + (record.files?.length || 0), 0)}</p>
-            </div>
+              <div className="rounded-lg border border-border bg-card p-5 shadow-soft">
+                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary/70">Proof Items</p>
+                <p className="mt-3 font-display text-4xl text-body">{dateFilteredRecords.reduce((sum, record) => sum + (record.files?.length || 0) + (record.documentLink ? 1 : 0), 0)}</p>
+              </div>
           </div>
 
           <div className="rounded-lg border border-border bg-card p-5 shadow-soft">
@@ -465,20 +599,20 @@ const WorksAttendancePage = () => {
               Search
               <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
                 <Search size={16} className="text-slate-400" />
-                <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by staff name, GPS location, in time, out time, or purpose" className="w-full border-none bg-transparent text-sm outline-none" />
-              </div>
-            </label>
-          </div>
+                  <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by staff, GPS, time, purpose, file names, or links" className="w-full border-none bg-transparent text-sm outline-none" />
+                </div>
+              </label>
+            </div>
 
-          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
-            <div className="overflow-x-auto">
-              <table className="min-w-[1280px] divide-y divide-border">
-                <thead className="bg-primary text-white">
-                  <tr>
-                    {["Sr.No.", "Staff Name", "GPS Location", "In Time", "Out Time", "Purpose", "Selfie", "Action"].map((label) => (
-                      <th key={label} className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.22em]">
-                        {label}
-                      </th>
+            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
+              <div className="overflow-x-auto">
+                <table className="min-w-[1520px] divide-y divide-border">
+                  <thead className="bg-primary text-white">
+                    <tr>
+                      {["Sr.No.", "Staff Name", "GPS Location", "In Time", "Out Time", "Purpose", "Proof", "Document Link", "Action"].map((label) => (
+                        <th key={label} className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.22em]">
+                          {label}
+                        </th>
                     ))}
                   </tr>
                 </thead>
@@ -501,17 +635,47 @@ const WorksAttendancePage = () => {
                         <td className="px-4 py-4 align-top text-sm text-slate-600">{record.checkOutTime || "-"}</td>
                         <td className="px-4 py-4 align-top text-sm text-slate-600">{record.purpose || "-"}</td>
                         <td className="px-4 py-4 align-top">
-                          {record.files.length ? (
+                          {record.documentType === "link" ? (
+                            <span className="text-sm text-slate-400">Link proof</span>
+                          ) : record.files.length ? (
                             <div className="space-y-2">
                               {record.files.map((file) => (
                                 <a key={`${getFileUrl(file)}-${getFileName(file)}`} href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
-                                  <Camera size={14} />
-                                  {getFileName(file)}
+                                  {record.documentType === "image" ? <Camera size={14} /> : <FileImage size={14} />}
+                                  {record.documentType === "image" ? "Open Image" : "Download File"}
                                 </a>
                               ))}
                             </div>
                           ) : (
-                            <span className="text-sm text-slate-400">No selfie</span>
+                            <span className="text-sm text-slate-400">No proof</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          {record.documentLink ? (
+                            <div className="space-y-2">
+                              <a
+                                href={record.documentLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open Document Link"
+                                className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10"
+                              >
+                                <Link2 size={14} />
+                                Open
+                              </a>
+                              <p className="flex items-center gap-2 text-xs text-slate-500">
+                                <span className="truncate" title={record.documentLink}>
+                                  {truncateUrl(record.documentLink)}
+                                </span>
+                                {isDriveLink(record.documentLink) ? (
+                                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                                    Drive Link
+                                  </span>
+                                ) : null}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-400">No link</span>
                           )}
                         </td>
                         <td className="px-4 py-4 align-top">
@@ -520,6 +684,18 @@ const WorksAttendancePage = () => {
                               <Pencil size={14} />
                               Edit
                             </button>
+                            {record.documentLink ? (
+                              <a
+                                href={record.documentLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open Document Link"
+                                className="inline-flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent/15"
+                              >
+                                <ExternalLink size={14} />
+                                View Link
+                              </a>
+                            ) : null}
                             {canDelete ? (
                               <button type="button" onClick={() => setDeleteTarget(record)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700">
                                 <Trash2 size={14} />
@@ -532,7 +708,7 @@ const WorksAttendancePage = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="8" className="px-4 py-16 text-center text-sm text-slate-500">
+                      <td colSpan="9" className="px-4 py-16 text-center text-sm text-slate-500">
                         No attendance rows available for the selected date and search.
                       </td>
                     </tr>

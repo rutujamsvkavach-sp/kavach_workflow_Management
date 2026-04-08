@@ -75,6 +75,18 @@ const normalizeAttachments = (value) => {
   return [normalizeAttachment(value)].filter(Boolean);
 };
 
+const normalizeDocumentType = (value, fallback = "file") => {
+  if (value === "link") {
+    return "link";
+  }
+
+  if (value === "image") {
+    return "image";
+  }
+
+  return fallback;
+};
+
 const normalizeVersionEntry = (value) => {
   if (!value || typeof value !== "object") {
     return null;
@@ -88,7 +100,7 @@ const normalizeVersionEntry = (value) => {
 
   return {
     version,
-    documentType: value.documentType === "link" ? "link" : "file",
+    documentType: normalizeDocumentType(value.documentType),
     files: normalizeAttachments(value.files || value.fileUrl),
     documentLink: typeof value.documentLink === "string" ? value.documentLink.trim() : "",
     uploadedAt: value.uploadedAt ? new Date(value.uploadedAt) : new Date(),
@@ -131,7 +143,7 @@ const normalizeDesignMeta = (value) => {
     category: String(value.category || "").trim(),
     activity: String(value.activity || "").trim(),
     document: String(value.document || "").trim(),
-    documentType: value.documentType === "link" ? "link" : "file",
+    documentType: normalizeDocumentType(value.documentType),
     documentLink: String(value.documentLink || "").trim(),
     revision: String(value.revision || "").trim(),
     status: String(value.status || "").trim(),
@@ -159,6 +171,8 @@ const normalizeWorkMeta = (value) => {
     locationLabel: String(value.locationLabel || "").trim(),
     purpose: String(value.purpose || "").trim(),
     remarks: String(value.remarks || "").trim(),
+    documentType: normalizeDocumentType(value.documentType),
+    documentLink: String(value.documentLink || "").trim(),
   };
 };
 
@@ -177,6 +191,8 @@ const normalizeLocoMeta = (value) => {
     driver: String(value.driver || "").trim(),
     doneBy: String(value.doneBy || "").trim(),
     remarks: String(value.remarks || "").trim(),
+    documentType: normalizeDocumentType(value.documentType),
+    documentLink: String(value.documentLink || "").trim(),
   };
 };
 
@@ -193,6 +209,8 @@ const normalizeSiteImageMeta = (value) => {
     vendor: String(value.vendor || "").trim(),
     station: String(value.station || "").trim(),
     imageDate: String(value.imageDate || "").trim(),
+    documentType: normalizeDocumentType(value.documentType, "image"),
+    documentLink: String(value.documentLink || "").trim(),
   };
 };
 
@@ -211,6 +229,8 @@ const normalizeTelecomMeta = (value) => {
     wavelength: String(value.wavelength || "").trim(),
     testBy: String(value.testBy || "").trim(),
     remark: String(value.remark || "").trim(),
+    documentType: normalizeDocumentType(value.documentType),
+    documentLink: String(value.documentLink || "").trim(),
   };
 };
 
@@ -230,6 +250,8 @@ const normalizeAccountsMeta = (value) => {
     document: String(value.document || "").trim(),
     revision: String(value.revision || "").trim(),
     status: String(value.status || "").trim(),
+    documentType: normalizeDocumentType(value.documentType),
+    documentLink: String(value.documentLink || "").trim(),
   };
 };
 
@@ -240,7 +262,7 @@ const normalizeCivilFieldValue = (value) => {
 
   if (typeof value === "string") {
     const text = value.trim();
-    return text ? { text, files: [] } : undefined;
+    return text ? { text, files: [], documentType: "file", documentLink: "" } : undefined;
   }
 
   if (typeof value !== "object") {
@@ -249,14 +271,18 @@ const normalizeCivilFieldValue = (value) => {
 
   const text = String(value.text || "").trim();
   const files = normalizeAttachments(value.files || value.fileUrl);
+  const documentType = normalizeDocumentType(value.documentType, files.some((file) => String(file.type || "").startsWith("image/")) ? "image" : "file");
+  const documentLink = String(value.documentLink || "").trim();
 
-  if (!text && !files.length) {
+  if (!text && !files.length && !documentLink) {
     return undefined;
   }
 
   return {
     text,
     files,
+    documentType,
+    documentLink,
   };
 };
 
@@ -305,6 +331,8 @@ const normalizeTagPlacementMeta = (value) => {
     phase: String(value.phase || "").trim(),
     blockSection: String(value.blockSection || "").trim(),
     station: String(value.station || "").trim(),
+    documentType: normalizeDocumentType(value.documentType),
+    documentLink: String(value.documentLink || "").trim(),
     documents: normalizeAttachments(value.documents),
     images: normalizeAttachments(value.images),
   };
@@ -316,7 +344,7 @@ const mapRecordResponse = (row) => ({
   title: row.title,
   description: row.description,
   documentLink: typeof row.documentLink === "string" ? row.documentLink : "",
-  documentType: row.documentType === "link" ? "link" : "file",
+  documentType: normalizeDocumentType(row.documentType, normalizeAttachments(row.fileUrl).some((file) => String(file.type || "").startsWith("image/")) ? "image" : "file"),
   fileUrl: row.fileUrl,
   files: normalizeAttachments(row.fileUrl),
   designMeta: row.designMeta,
@@ -393,28 +421,33 @@ export const getData = async (req, res, next) => {
         { "workMeta.staffName": { $regex: search, $options: "i" } },
         { "workMeta.staffId": { $regex: search, $options: "i" } },
         { "workMeta.locationLabel": { $regex: search, $options: "i" } },
+        { "workMeta.documentLink": { $regex: search, $options: "i" } },
         { "workMeta.remarks": { $regex: search, $options: "i" } },
         { "locoMeta.trialCondition": { $regex: search, $options: "i" } },
         { "locoMeta.locoDetails": { $regex: search, $options: "i" } },
         { "locoMeta.trialDate": { $regex: search, $options: "i" } },
         { "locoMeta.driver": { $regex: search, $options: "i" } },
         { "locoMeta.doneBy": { $regex: search, $options: "i" } },
+        { "locoMeta.documentLink": { $regex: search, $options: "i" } },
         { "locoMeta.remarks": { $regex: search, $options: "i" } },
         { "siteImageMeta.pssa": { $regex: search, $options: "i" } },
         { "siteImageMeta.vendor": { $regex: search, $options: "i" } },
         { "siteImageMeta.station": { $regex: search, $options: "i" } },
         { "siteImageMeta.imageDate": { $regex: search, $options: "i" } },
+        { "siteImageMeta.documentLink": { $regex: search, $options: "i" } },
         { "telecomMeta.testDate": { $regex: search, $options: "i" } },
         { "telecomMeta.fiberLength": { $regex: search, $options: "i" } },
         { "telecomMeta.fiberDetails": { $regex: search, $options: "i" } },
         { "telecomMeta.wavelength": { $regex: search, $options: "i" } },
         { "telecomMeta.testBy": { $regex: search, $options: "i" } },
+        { "telecomMeta.documentLink": { $regex: search, $options: "i" } },
         { "telecomMeta.remark": { $regex: search, $options: "i" } },
         { "accountsMeta.contractName": { $regex: search, $options: "i" } },
         { "accountsMeta.account": { $regex: search, $options: "i" } },
         { "accountsMeta.category": { $regex: search, $options: "i" } },
         { "accountsMeta.activity": { $regex: search, $options: "i" } },
         { "accountsMeta.document": { $regex: search, $options: "i" } },
+        { "accountsMeta.documentLink": { $regex: search, $options: "i" } },
         { "accountsMeta.revision": { $regex: search, $options: "i" } },
         { "accountsMeta.status": { $regex: search, $options: "i" } },
         { "civilMeta.section.text": { $regex: search, $options: "i" } },
@@ -435,12 +468,34 @@ export const getData = async (req, res, next) => {
         { "civilMeta.thirdStageInspection.text": { $regex: search, $options: "i" } },
         { "civilMeta.erectionOfTower.text": { $regex: search, $options: "i" } },
         { "civilMeta.erectedTowerJpg.text": { $regex: search, $options: "i" } },
+        { "civilMeta.section.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.stationLcGate.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.tentativeGadRailway.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.siteSurveyReportByAgency.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.towerId.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.completionGadOfTowerByAgency.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.cableRoutePlanSignedCopy.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.soilTestBoreLog.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.soilTestLabReport.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.excavation.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.pcc.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.firstStageInspection.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.rccFirstLift.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.secondStageInspection.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.secondLiftFoundationCipFixing.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.thirdStageInspection.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.erectionOfTower.documentLink": { $regex: search, $options: "i" } },
+        { "civilMeta.erectedTowerJpg.documentLink": { $regex: search, $options: "i" } },
         { "civilMeta.fourthStageInspection.text": { $regex: search, $options: "i" } },
+        { "civilMeta.fourthStageInspection.documentLink": { $regex: search, $options: "i" } },
         { "civilMeta.cableLayingTowerToRelayRoom.text": { $regex: search, $options: "i" } },
+        { "civilMeta.cableLayingTowerToRelayRoom.documentLink": { $regex: search, $options: "i" } },
         { "civilMeta.earthing.text": { $regex: search, $options: "i" } },
+        { "civilMeta.earthing.documentLink": { $regex: search, $options: "i" } },
         { "tagPlacementMeta.phase": { $regex: search, $options: "i" } },
         { "tagPlacementMeta.blockSection": { $regex: search, $options: "i" } },
         { "tagPlacementMeta.station": { $regex: search, $options: "i" } },
+        { "tagPlacementMeta.documentLink": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -485,8 +540,8 @@ export const createData = async (req, res, next) => {
       title: req.body.title,
       description: req.body.description,
       documentLink: String(req.body.documentLink || "").trim(),
-      documentType: req.body.documentType === "link" ? "link" : "file",
-      fileUrl: req.body.documentType === "link" ? [] : normalizeAttachments(req.body.fileUrl),
+      documentType: normalizeDocumentType(req.body.documentType, normalizeAttachments(req.body.fileUrl).some((file) => String(file.type || "").startsWith("image/")) ? "image" : "file"),
+      fileUrl: normalizeDocumentType(req.body.documentType) === "link" ? [] : normalizeAttachments(req.body.fileUrl),
       designMeta: normalizeDesignMeta(req.body.designMeta),
       workMeta: normalizeWorkMeta(req.body.workMeta),
       locoMeta: normalizeLocoMeta(req.body.locoMeta),
@@ -534,8 +589,8 @@ export const updateData = async (req, res, next) => {
         title: req.body.title,
         description: req.body.description,
         documentLink: String(req.body.documentLink || "").trim(),
-        documentType: req.body.documentType === "link" ? "link" : "file",
-        fileUrl: req.body.documentType === "link" ? [] : normalizeAttachments(req.body.fileUrl),
+        documentType: normalizeDocumentType(req.body.documentType, normalizeAttachments(req.body.fileUrl).some((file) => String(file.type || "").startsWith("image/")) ? "image" : "file"),
+        fileUrl: normalizeDocumentType(req.body.documentType) === "link" ? [] : normalizeAttachments(req.body.fileUrl),
         designMeta: normalizeDesignMeta(req.body.designMeta),
         workMeta: normalizeWorkMeta(req.body.workMeta),
         locoMeta: normalizeLocoMeta(req.body.locoMeta),
