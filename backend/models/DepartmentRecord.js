@@ -36,6 +36,12 @@ const versionHistorySchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    documentType: {
+      type: String,
+      enum: ["file", "link"],
+      trim: true,
+      default: "file",
+    },
     documentLink: {
       type: String,
       trim: true,
@@ -81,18 +87,24 @@ const designMetaSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-  document: {
-    type: String,
-    trim: true,
-  },
-  documentLink: {
-    type: String,
-    trim: true,
-  },
-  revision: {
-    type: String,
-    trim: true,
-  },
+    document: {
+      type: String,
+      trim: true,
+    },
+    documentType: {
+      type: String,
+      enum: ["file", "link"],
+      trim: true,
+      default: "file",
+    },
+    documentLink: {
+      type: String,
+      trim: true,
+    },
+    revision: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       trim: true,
@@ -433,6 +445,12 @@ const departmentRecordSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+    },
+    documentType: {
+      type: String,
+      enum: ["file", "link"],
+      trim: true,
+      default: "file",
     },
     fileUrl: {
       type: [attachmentSchema],

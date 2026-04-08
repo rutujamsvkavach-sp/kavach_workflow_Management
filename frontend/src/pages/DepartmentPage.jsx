@@ -84,6 +84,8 @@ const DepartmentPage = () => {
         record.description,
         record.createdBy,
         record.department,
+        record.documentLink,
+        record.documentType,
         record.anonymous ? "anonymous" : "",
         ...getFileSearchTerms(record.files),
       ])

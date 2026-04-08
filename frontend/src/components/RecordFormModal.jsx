@@ -1,4 +1,4 @@
-import { Paperclip, UploadCloud, X } from "lucide-react";
+import { ExternalLink, Link2, Paperclip, UploadCloud, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -11,24 +11,47 @@ const defaultState = {
   title: "",
   description: "",
   documentLink: "",
+  documentType: "file",
   fileUrl: [],
-  uploadMode: "file",
   anonymous: false,
 };
+
+const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
+const isDriveLink = (value) => /drive\.google\.com|docs\.google\.com/i.test(String(value || ""));
+const truncateUrl = (value, maxLength = 52) => {
+  const normalized = String(value || "").trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 3)}...`;
+};
+const uploadModes = [
+  { value: "file", label: "Upload File" },
+  { value: "link", label: "Use Link (URL)" },
+];
 
 const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment }) => {
   const [form, setForm] = useState(defaultState);
   const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setErrors({});
+
     if (record) {
       setForm({
         department: record.department,
         title: record.title,
         description: record.description,
         documentLink: record.documentLink || "",
+        documentType: record.documentType === "link" || (record.documentLink && !record.files?.length) ? "link" : "file",
         fileUrl: record.files || [],
-        uploadMode: record.documentLink ? "link" : "file",
         anonymous: Boolean(record.anonymous),
       });
       return;
@@ -45,6 +68,10 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
   }
 
   const handleUpload = async (event) => {
+    if (form.documentType !== "file") {
+      return;
+    }
+
     const files = event.target.files;
 
     if (!files?.length) {
@@ -63,6 +90,7 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
         ...current,
         fileUrl: [...current.fileUrl, ...uploaded],
       }));
+      setErrors((current) => ({ ...current, documentSource: "" }));
       toast.success("Files uploaded successfully.");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to upload files.");
@@ -72,28 +100,39 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
     }
   };
 
+  const handleDocumentTypeChange = (documentType) => {
+    setForm((current) => ({
+      ...current,
+      documentType,
+      fileUrl: documentType === "file" ? current.fileUrl : [],
+      documentLink: documentType === "link" ? current.documentLink : "",
+    }));
+    setErrors((current) => ({ ...current, documentSource: "", documentLink: "" }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     const trimmedLink = form.documentLink.trim();
+    const nextErrors = {};
 
-    if (form.uploadMode === "file" && !form.fileUrl.length) {
-      toast.error("Please upload at least one file.");
-      return;
+    if (form.documentType === "file" && !form.fileUrl.length) {
+      nextErrors.documentSource = "Please upload at least one file.";
     }
 
-    if (form.uploadMode === "link") {
+    if (form.documentType === "link") {
       if (!trimmedLink) {
-        toast.error("Please enter a document link.");
-        return;
+        nextErrors.documentLink = "Please enter a document link.";
+      } else if (!isHttpUrl(trimmedLink)) {
+        nextErrors.documentLink = "Please enter a valid URL starting with http:// or https://.";
       }
+    }
 
-      try {
-        new URL(trimmedLink);
-      } catch (_error) {
-        toast.error("Please enter a valid URL.");
-        return;
-      }
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length) {
+      toast.error("Please choose a valid document source.");
+      return;
     }
 
     await onSubmit(form);
@@ -154,47 +193,133 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
             />
           </label>
 
-          <div className="space-y-3 rounded-lg border border-border bg-slate-50 px-4 py-4">
+          <div className="rounded-2xl border border-primary/10 bg-white p-5 shadow-soft">
             <div>
               <p className="text-sm font-semibold text-body">Document Source</p>
               <p className="mt-1 text-sm text-slate-500">Choose either a file upload or a stored URL for this record.</p>
             </div>
-            <div className="flex flex-wrap gap-4">
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-body">
-                <input
-                  type="radio"
-                  name="uploadMode"
-                  value="file"
-                  checked={form.uploadMode === "file"}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      uploadMode: event.target.value,
-                      documentLink: "",
-                    }))
-                  }
-                  className="h-4 w-4 border-border text-primary focus:ring-primary"
-                />
-                Upload File
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-body">
-                <input
-                  type="radio"
-                  name="uploadMode"
-                  value="link"
-                  checked={form.uploadMode === "link"}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      uploadMode: event.target.value,
-                      fileUrl: [],
-                    }))
-                  }
-                  className="h-4 w-4 border-border text-primary focus:ring-primary"
-                />
-                Use Link (URL)
-              </label>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {uploadModes.map((option) => {
+                const isActive = form.documentType === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleDocumentTypeChange(option.value)}
+                    className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      isActive ? "bg-primary text-white shadow-sm" : "border border-border bg-white text-slate-600 hover:border-primary/30 hover:text-primary"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="documentType"
+                      value={option.value}
+                      checked={isActive}
+                      onChange={() => handleDocumentTypeChange(option.value)}
+                      className="sr-only"
+                    />
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
+
+            {form.documentType === "file" ? (
+              <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                      <UploadCloud size={22} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-body">Upload File</p>
+                      <p className="text-sm text-slate-500">Maximum 5 files per upload request, up to 10 MB each.</p>
+                    </div>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
+                    {uploading ? "Uploading..." : "Select Files"}
+                    <input type="file" multiple accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp" className="hidden" onChange={handleUpload} />
+                  </label>
+                </div>
+
+                {form.fileUrl.length ? (
+                  <div className="mt-4 space-y-2">
+                    {form.fileUrl.map((file) => (
+                      <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Paperclip size={16} className="text-primary" />
+                          <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
+                            {getFileName(file)}
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((current) => ({
+                              ...current,
+                              fileUrl: current.fileUrl.filter((item) => getFileUrl(item) !== getFileUrl(file)),
+                            }))
+                          }
+                          className="text-sm font-semibold text-accent"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-slate-500">No files selected yet.</p>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                    <Link2 size={22} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-body">Use Link (URL)</p>
+                    <p className="text-sm text-slate-500">Paste a Google Drive, OneDrive, or any file link for direct access.</p>
+                  </div>
+                </div>
+                <label className="space-y-2 text-sm font-medium text-body">
+                  Document URL
+                  <input
+                    type="url"
+                    value={form.documentLink}
+                    onChange={(event) => {
+                      setForm((current) => ({ ...current, documentLink: event.target.value }));
+                      setErrors((current) => ({ ...current, documentLink: "" }));
+                    }}
+                    className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                    placeholder="Paste Google Drive / OneDrive / Any File Link"
+                  />
+                  <p className="text-sm font-normal text-slate-500">Paste a direct document, folder, or storage link that users can open later.</p>
+                </label>
+                {form.documentLink ? (
+                  <a
+                    href={form.documentLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex max-w-full items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                    title={form.documentLink}
+                  >
+                    <ExternalLink size={14} />
+                    <span className="truncate">{truncateUrl(form.documentLink)}</span>
+                  </a>
+                ) : null}
+                {form.documentLink && isDriveLink(form.documentLink) ? (
+                  <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    <ExternalLink size={12} />
+                    Drive Link
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {errors.documentSource ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentSource}</p> : null}
+            {errors.documentLink ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentLink}</p> : null}
           </div>
 
           <label className="flex items-start gap-3 rounded-lg border border-border bg-slate-50 px-4 py-4 text-sm font-medium text-body">
@@ -211,68 +336,6 @@ const RecordFormModal = ({ open, onClose, onSubmit, record, defaultDepartment })
               </span>
             </span>
           </label>
-
-          {form.uploadMode === "file" ? (
-            <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
-                    <UploadCloud size={22} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-body">Upload PDF, Excel, and image files</p>
-                    <p className="text-sm text-slate-500">Maximum 5 files per upload request, up to 10 MB each.</p>
-                  </div>
-                </div>
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
-                  {uploading ? "Uploading..." : "Select Files"}
-                  <input type="file" multiple accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp" className="hidden" onChange={handleUpload} />
-                </label>
-              </div>
-
-              {form.fileUrl.length ? (
-                <div className="mt-4 space-y-2">
-                  {form.fileUrl.map((file) => (
-                    <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <Paperclip size={16} className="text-primary" />
-                        <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
-                          {getFileName(file)}
-                        </a>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((current) => ({
-                            ...current,
-                            fileUrl: current.fileUrl.filter((item) => getFileUrl(item) !== getFileUrl(file)),
-                          }))
-                        }
-                        className="text-sm font-semibold text-accent"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-4 text-sm text-slate-500">No files selected yet.</p>
-              )}
-            </div>
-          ) : (
-            <label className="space-y-2 text-sm font-medium text-body">
-              Data Link
-              <input
-                type="url"
-                value={form.documentLink}
-                onChange={(event) => setForm((current) => ({ ...current, documentLink: event.target.value }))}
-                required={form.uploadMode === "link"}
-                className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                placeholder="https://example.com/document-or-folder"
-              />
-              <p className="text-sm font-normal text-slate-500">Paste a direct document, folder, or storage link that users can open later.</p>
-            </label>
-          )}
 
           <div className="flex flex-wrap justify-end gap-3">
             <button

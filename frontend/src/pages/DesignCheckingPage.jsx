@@ -3,6 +3,7 @@ import {
   ExternalLink,
   FileSpreadsheet,
   History,
+  Link2,
   Paperclip,
   Pencil,
   Plus,
@@ -35,6 +36,10 @@ const ZONES = [
 ];
 const CONTRACTS = ["HBL", "IRCON", "MSV"];
 const CATEGORIES = ["QA", "EXECUTION", "APPROVED"];
+const DOCUMENT_TYPE_OPTIONS = [
+  { value: "file", label: "Upload File" },
+  { value: "link", label: "Upload Link" },
+];
 const CENTRAL_RAILWAY_STATIONS = [
   "LC-19 (DD-BRB)",
   "BORIBIAL",
@@ -145,6 +150,7 @@ const emptyForm = {
   category: "",
   activity: "",
   document: "",
+  documentType: "file",
   documentLink: "",
   revision: "",
   status: "",
@@ -153,6 +159,28 @@ const emptyForm = {
 };
 
 const csvEscape = (value) => `"${String(value || "").replace(/"/g, '""')}"`;
+const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || "").trim());
+const isDriveLink = (value) => /drive\.google\.com|docs\.google\.com/i.test(String(value || ""));
+const truncateUrl = (value, maxLength = 38) => {
+  const url = String(value || "").trim();
+
+  if (!url || url.length <= maxLength) {
+    return url;
+  }
+
+  return `${url.slice(0, maxLength - 3)}...`;
+};
+const getDocumentType = (record) => {
+  if (record?.designMeta?.documentType === "link" || record?.documentType === "link") {
+    return "link";
+  }
+
+  if ((record?.designMeta?.documentLink || record?.documentLink) && !(record?.files || []).length) {
+    return "link";
+  }
+
+  return "file";
+};
 
 const downloadBlob = (content, fileName, mimeType) => {
   const blob = new Blob([content], { type: mimeType });
@@ -168,7 +196,8 @@ const buildRecordPayload = (form, srNo) => ({
   department: DEPARTMENT_NAME,
   title: form.document || form.activity || `${form.contractName || "Contract"} Design Document`,
   description: form.activity || form.document || "Design workflow entry",
-  fileUrl: form.files,
+  documentLink: form.documentType === "link" ? form.documentLink.trim() : "",
+  fileUrl: form.documentType === "file" ? form.files : [],
   designMeta: {
     srNo,
     zone: form.zone,
@@ -177,7 +206,8 @@ const buildRecordPayload = (form, srNo) => ({
     category: form.category,
     activity: form.activity,
     document: form.document,
-    documentLink: form.documentLink,
+    documentType: form.documentType,
+    documentLink: form.documentType === "link" ? form.documentLink.trim() : "",
     revision: form.revision,
     status: form.status,
   },
@@ -193,6 +223,7 @@ const normalizeRecord = (record, fallbackIndex) => ({
   category: record.designMeta?.category || "",
   activity: record.designMeta?.activity || "",
   document: record.designMeta?.document || record.title || "",
+  documentType: getDocumentType(record),
   documentLink: record.designMeta?.documentLink || "",
   revision: record.designMeta?.revision || "",
   status: record.designMeta?.status || "",
@@ -261,9 +292,15 @@ const VersionHistoryModal = ({ record, onClose }) => {
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                      title="Open Document Link"
                     >
-                      <ExternalLink size={14} />
+                      <Link2 size={14} />
                       Open saved link
+                      {isDriveLink(version.documentLink) ? (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                          Drive Link
+                        </span>
+                      ) : null}
                     </a>
                   ) : null}
                   {version.files.map((file) => (
@@ -293,11 +330,14 @@ const VersionHistoryModal = ({ record, onClose }) => {
 const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!open) {
       return;
     }
+
+    setErrors({});
 
     if (record) {
       setForm({
@@ -307,6 +347,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         category: record.category,
         activity: record.activity,
         document: record.document,
+        documentType: record.documentType || "file",
         documentLink: record.documentLink || "",
         revision: record.revision,
         status: record.status,
@@ -317,6 +358,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
     }
 
     setForm(emptyForm);
+    setErrors({});
   }, [open, record]);
 
   if (!open) {
@@ -324,6 +366,10 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
   }
 
   const handleUpload = async (event) => {
+    if (form.documentType !== "file") {
+      return;
+    }
+
     const files = event.target.files;
 
     if (!files?.length) {
@@ -342,6 +388,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         const shouldArchiveCurrent =
           record &&
           current.revision.trim() &&
+          current.documentType === "file" &&
           current.files.length &&
           uploaded.length &&
           JSON.stringify(current.files.map(getFileUrl)) !== JSON.stringify(uploaded.map(getFileUrl));
@@ -350,6 +397,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
           ? [
               {
                 version: current.revision,
+                documentType: current.documentType,
                 files: current.files,
                 documentLink: current.documentLink,
                 uploadedAt: new Date().toISOString(),
@@ -362,6 +410,7 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
         return {
           ...current,
           files: uploaded,
+          documentLink: current.documentType === "file" ? "" : current.documentLink,
           versionHistory: nextHistory,
         };
       });
@@ -375,8 +424,39 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
     }
   };
 
+  const handleDocumentTypeChange = (documentType) => {
+    setForm((current) => ({
+      ...current,
+      documentType,
+      files: documentType === "file" ? current.files : [],
+      documentLink: documentType === "link" ? current.documentLink : "",
+    }));
+    setErrors((current) => ({ ...current, documentSource: "", documentLink: "" }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const nextErrors = {};
+
+    if (form.documentType === "file" && !form.files.length) {
+      nextErrors.documentSource = "Please upload at least one file.";
+    }
+
+    if (form.documentType === "link") {
+      if (!form.documentLink.trim()) {
+        nextErrors.documentLink = "Please enter a document URL.";
+      } else if (!isHttpUrl(form.documentLink)) {
+        nextErrors.documentLink = "Please enter a valid URL starting with http:// or https://.";
+      }
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length) {
+      toast.error("Please fix the design document source before saving.");
+      return;
+    }
+
     await onSubmit(form, record?.srNo || nextSrNo);
   };
 
@@ -472,16 +552,6 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
               <input type="text" value={form.document} onChange={(event) => setForm((current) => ({ ...current, document: event.target.value }))} required className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" />
             </label>
             <label className="space-y-2 text-sm font-medium text-body">
-              Document Link
-              <input
-                type="url"
-                value={form.documentLink}
-                onChange={(event) => setForm((current) => ({ ...current, documentLink: event.target.value }))}
-                className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                placeholder="https://example.com/design-file"
-              />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-body">
               Revision
               <input type="text" value={form.revision} onChange={(event) => setForm((current) => ({ ...current, revision: event.target.value }))} required className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10" placeholder="e.g. 2.0.1" />
             </label>
@@ -491,40 +561,117 @@ const DesignRecordModal = ({ open, onClose, onSubmit, record, nextSrNo }) => {
             </label>
           </div>
 
-          <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
-                  <UploadCloud size={22} />
-                </div>
-                <div>
-                  <p className="font-semibold text-body">Upload design document version</p>
-                  <p className="text-sm text-slate-500">Uploading a new file replaces the active file and keeps the old one in version history.</p>
-                </div>
-              </div>
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover">
-                {uploading ? "Uploading..." : "Select Files"}
-                <input type="file" multiple accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp" className="hidden" onChange={handleUpload} />
-              </label>
+          <div className="rounded-2xl border border-primary/10 bg-white p-5 shadow-soft">
+            <div className="mb-4 flex flex-wrap gap-3">
+              {DOCUMENT_TYPE_OPTIONS.map((option) => {
+                const isActive = form.documentType === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleDocumentTypeChange(option.value)}
+                    className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      isActive ? "bg-primary text-white shadow-sm" : "border border-border bg-white text-slate-600 hover:border-primary/30 hover:text-primary"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="designDocumentType"
+                      value={option.value}
+                      checked={isActive}
+                      onChange={() => handleDocumentTypeChange(option.value)}
+                      className="sr-only"
+                    />
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
 
-            {form.files.length ? (
-              <div className="mt-4 space-y-2">
-                {form.files.map((file) => (
-                  <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Paperclip size={16} className="text-primary" />
-                      <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
-                        {getFileName(file)}
-                      </a>
+            {form.documentType === "file" ? (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 transition">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                      <UploadCloud size={22} />
                     </div>
-                    <button type="button" onClick={() => setForm((current) => ({ ...current, files: current.files.filter((item) => getFileUrl(item) !== getFileUrl(file)) }))} className="text-sm font-semibold text-accent">
-                      Remove
-                    </button>
+                    <div>
+                      <p className="font-semibold text-body">Upload Document</p>
+                      <p className="text-sm text-slate-500">Uploading a new file replaces the active file and keeps the old one in version history.</p>
+                    </div>
                   </div>
-                ))}
+                  <label
+                    className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-hover"
+                  >
+                    {uploading ? "Uploading..." : "Select Files"}
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
+                      className="hidden"
+                      onChange={handleUpload}
+                    />
+                  </label>
+                </div>
+
+                {form.files.length ? (
+                  <div className="mt-4 space-y-2">
+                    {form.files.map((file) => (
+                      <div key={`${getFileUrl(file)}-${getFileName(file)}`} className="flex items-center justify-between rounded-lg border border-border bg-white px-3 py-2">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Paperclip size={16} className="text-primary" />
+                          <a href={getFileUrl(file)} target="_blank" rel="noreferrer" className="truncate text-sm font-medium text-primary hover:underline">
+                            {getFileName(file)}
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setForm((current) => ({ ...current, files: current.files.filter((item) => getFileUrl(item) !== getFileUrl(file)) }))}
+                          className="text-sm font-semibold text-accent"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+            ) : (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 transition">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                    <Link2 size={22} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-body">Or Add Document Link</p>
+                    <p className="text-sm text-slate-500">Paste a Google Drive, OneDrive, or any public document URL for direct access.</p>
+                  </div>
+                </div>
+                <label className="space-y-2 text-sm font-medium text-body">
+                  Document URL
+                  <input
+                    type="url"
+                    value={form.documentLink}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setForm((current) => ({ ...current, documentLink: value }));
+                      setErrors((current) => ({ ...current, documentLink: "" }));
+                    }}
+                    className="w-full rounded-lg border border-border bg-white px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                    placeholder="Paste Google Drive / OneDrive / Any File Link"
+                  />
+                </label>
+                {form.documentLink && isDriveLink(form.documentLink) ? (
+                  <div className="mt-3 inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    Drive Link
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {errors.documentSource ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentSource}</p> : null}
+            {errors.documentLink ? <p className="mt-3 text-sm font-medium text-accent">{errors.documentLink}</p> : null}
           </div>
 
           <div className="flex flex-wrap justify-end gap-3">
@@ -742,7 +889,7 @@ const DesignCheckingPage = () => {
             <table className="min-w-[1200px] divide-y divide-border">
               <thead className="bg-primary text-white">
                 <tr>
-                  {["Sr.No.", "Contract Name", "Activity", "Document", "Revision", "Status", "Action"].map((label) => (
+                  {["Sr.No.", "Contract Name", "Activity", "Document", "Document Link", "Revision", "Status", "Action"].map((label) => (
                     <th key={label} className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.22em]">{label}</th>
                   ))}
                 </tr>
@@ -757,24 +904,41 @@ const DesignCheckingPage = () => {
                       <td className="px-4 py-4 align-top">
                         <div className="space-y-2">
                           <p className="font-semibold text-body">{record.document}</p>
-                          {record.documentLink ? (
+                          {record.documentType === "file" && record.files.length ? record.files.map((file) => (
+                            <a key={`${getFileUrl(file)}-${getFileName(file)}`} href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                              <Download size={14} />
+                              Download File
+                            </a>
+                          )) : <span className="text-sm text-slate-400">{record.documentType === "link" ? "Link-based document" : "No active document"}</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        {record.documentLink ? (
+                          <div className="space-y-2">
                             <a
                               href={record.documentLink}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                              title="Open Document Link"
+                              className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10"
                             >
-                              <ExternalLink size={14} />
-                              Open saved link
+                              <Link2 size={14} />
+                              Open Link
                             </a>
-                          ) : null}
-                          {record.files.length ? record.files.map((file) => (
-                            <a key={`${getFileUrl(file)}-${getFileName(file)}`} href={getFileUrl(file)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
-                              <Download size={14} />
-                              {getFileName(file)}
-                            </a>
-                          )) : <span className="text-sm text-slate-400">No active document</span>}
-                        </div>
+                            <p className="flex items-center gap-2 text-xs text-slate-500">
+                              <span className="truncate" title={record.documentLink}>
+                                {truncateUrl(record.documentLink)}
+                              </span>
+                              {isDriveLink(record.documentLink) ? (
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                                  Drive Link
+                                </span>
+                              ) : null}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-slate-400">No link</span>
+                        )}
                       </td>
                       <td className="px-4 py-4 align-top text-sm text-slate-600">{record.revision}</td>
                       <td className="px-4 py-4 align-top text-sm text-slate-600">{record.status}</td>
@@ -788,6 +952,18 @@ const DesignCheckingPage = () => {
                             <History size={14} />
                             History
                           </button>
+                          {record.documentLink ? (
+                            <a
+                              href={record.documentLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Open Document Link"
+                              className="inline-flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent/15"
+                            >
+                              <Link2 size={14} />
+                              View Link
+                            </a>
+                          ) : null}
                           {canDelete ? (
                             <button type="button" onClick={() => setDeleteTarget(record)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700">
                               <Trash2 size={14} />
@@ -800,7 +976,7 @@ const DesignCheckingPage = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-4 py-16 text-center text-sm text-slate-500">No design records available for the selected filters.</td>
+                    <td colSpan="8" className="px-4 py-16 text-center text-sm text-slate-500">No design records available for the selected filters.</td>
                   </tr>
                 )}
               </tbody>
