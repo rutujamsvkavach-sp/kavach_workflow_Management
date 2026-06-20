@@ -1,5 +1,4 @@
 import { isCloudinaryConfigured, uploadBufferToCloudinary } from "../services/cloudinary.js";
-import { isGoogleDriveConfigured, uploadBufferToGoogleDrive } from "../services/googleDrive.js";
 
 const getResourceType = (mimeType) => {
   if (mimeType.startsWith("image/")) {
@@ -30,16 +29,6 @@ const uploadToCloudinary = async (files) =>
     })
   );
 
-const uploadToGoogleDrive = async (files) =>
-  Promise.all(
-    files.map((file) =>
-      uploadBufferToGoogleDrive(file.buffer, {
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-      })
-    )
-  );
-
 const assertProviderIsConfigured = (provider, configured) => {
   if (configured) {
     return;
@@ -65,9 +54,6 @@ export const uploadFiles = async (req, res, next) => {
     if (provider === "cloudinary") {
       assertProviderIsConfigured("Cloudinary", isCloudinaryConfigured());
       files = await uploadToCloudinary(req.files);
-    } else if (provider === "google-drive") {
-      assertProviderIsConfigured("Google Drive", isGoogleDriveConfigured());
-      files = await uploadToGoogleDrive(req.files);
     } else if (provider === "local") {
       files = req.files.map((file) => ({
         name: file.originalname,
@@ -78,8 +64,6 @@ export const uploadFiles = async (req, res, next) => {
       }));
     } else if (isCloudinaryConfigured()) {
       files = await uploadToCloudinary(req.files);
-    } else if (isGoogleDriveConfigured()) {
-      files = await uploadToGoogleDrive(req.files);
     } else {
       files = req.files.map((file) => ({
         name: file.originalname,
