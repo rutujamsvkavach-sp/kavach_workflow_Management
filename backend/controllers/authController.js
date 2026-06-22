@@ -1,9 +1,7 @@
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { body, param } from "express-validator";
 import { departments, resolveUserDepartments } from "../constants/departments.js";
 import User from "../models/User.js";
-import { sendPasswordResetEmail } from "../services/mailService.js";
 import { generateToken } from "../utils/auth.js";
 
 const buildStaffIdBase = (name) => {
@@ -57,13 +55,6 @@ const mapUser = (user) => {
   };
 };
 
-const getPasswordResetUrl = (token) => {
-  const configuredUrl = String(process.env.PASSWORD_RESET_URL || "").trim();
-  const clientUrl = configuredUrl || String(process.env.CLIENT_URLS || "http://localhost:5173").split(",")[0].trim();
-
-  return `${clientUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
-};
-
 export const registerValidation = [
   body("name").trim().isLength({ min: 2 }).withMessage("Name must be at least 2 characters."),
   body("email").isEmail().withMessage("Valid email is required.").normalizeEmail(),
@@ -82,21 +73,6 @@ export const registerValidation = [
 export const loginValidation = [
   body("email").isEmail().withMessage("Valid email is required.").normalizeEmail(),
   body("password").notEmpty().withMessage("Password is required."),
-];
-
-export const forgotPasswordValidation = [body("email").isEmail().withMessage("Valid email is required.").normalizeEmail()];
-
-export const resetPasswordValidation = [
-  body("token").trim().isLength({ min: 20 }).withMessage("Reset token is invalid."),
-  body("password")
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters long.")
-    .matches(/[A-Z]/)
-    .withMessage("Password must include an uppercase letter.")
-    .matches(/[a-z]/)
-    .withMessage("Password must include a lowercase letter.")
-    .matches(/[0-9]/)
-    .withMessage("Password must include a number."),
 ];
 
 export const approvalValidation = [
@@ -270,64 +246,6 @@ export const deleteStaffUser = async (req, res, next) => {
       success: true,
       message: "Staff account permanently removed. Existing workflow records were preserved.",
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const forgotPassword = async (req, res, next) => {
-  try {
-    const normalizedEmail = String(req.body.email).toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      res.json({ success: true, message: "If an account exists for this email, a reset link has been sent." });
-      return;
-    }
-
-    const token = crypto.randomBytes(32).toString("hex");
-    user.passwordResetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
-    await user.save({ validateBeforeSave: false });
-
-    try {
-      await sendPasswordResetEmail({
-        recipient: user.email,
-        resetUrl: getPasswordResetUrl(token),
-      });
-    } catch (emailError) {
-      user.passwordResetTokenHash = undefined;
-      user.passwordResetExpires = undefined;
-      await user.save({ validateBeforeSave: false });
-      throw emailError;
-    }
-
-    res.json({ success: true, message: "If an account exists for this email, a reset link has been sent." });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const resetPassword = async (req, res, next) => {
-  try {
-    const passwordResetTokenHash = crypto.createHash("sha256").update(req.body.token).digest("hex");
-    const user = await User.findOne({
-      passwordResetTokenHash,
-      passwordResetExpires: { $gt: new Date() },
-    }).select("+passwordResetTokenHash +passwordResetExpires");
-
-    if (!user) {
-      const error = new Error("This password reset link is invalid or has expired.");
-      error.statusCode = 400;
-      throw error;
-    }
-
-    user.password = await bcrypt.hash(req.body.password, 12);
-    user.passwordResetTokenHash = undefined;
-    user.passwordResetExpires = undefined;
-    await user.save();
-
-    res.json({ success: true, message: "Password reset successfully. You can now sign in." });
   } catch (error) {
     next(error);
   }

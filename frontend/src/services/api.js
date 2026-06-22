@@ -32,8 +32,6 @@ api.interceptors.response.use(
 export const authApi = {
   login: (payload) => api.post("/auth/login", payload),
   register: (payload) => api.post("/auth/register", payload),
-  forgotPassword: (payload) => api.post("/auth/forgot-password", payload),
-  resetPassword: (payload) => api.post("/auth/reset-password", payload),
   getUsers: () => api.get("/auth/users"),
   updateUserApproval: (id, payload) => api.put(`/auth/users/${id}/approval`, payload),
   removeStaffUser: (id) => api.delete(`/auth/users/${id}`),

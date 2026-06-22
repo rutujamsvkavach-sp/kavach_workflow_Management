@@ -8,7 +8,6 @@ import DepartmentPage from "./pages/DepartmentPage";
 import DprPage from "./pages/DprPage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 const ProtectedRoute = ({ children, adminOnly = false, department }) => {
   const { isAuthenticated, user } = useAuth();
@@ -33,7 +32,6 @@ const ProtectedRoute = ({ children, adminOnly = false, department }) => {
 const App = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
-    <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route
       path="/"
       element={
