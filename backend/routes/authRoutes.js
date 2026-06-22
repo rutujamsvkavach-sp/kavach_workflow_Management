@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   approvalValidation,
+  deleteStaffUser,
   forgotPassword,
   forgotPasswordValidation,
   getUsers,
@@ -12,6 +13,7 @@ import {
   resetPassword,
   resetPasswordValidation,
   updateUserApproval,
+  userIdValidation,
 } from "../controllers/authController.js";
 import { authenticate, authorizeRoles } from "../middleware/authMiddleware.js";
 import { validateRequest } from "../middleware/validateMiddleware.js";
@@ -24,5 +26,6 @@ router.post("/forgot-password", forgotPasswordValidation, validateRequest, forgo
 router.post("/reset-password", resetPasswordValidation, validateRequest, resetPassword);
 router.get("/users", authenticate, authorizeRoles("admin"), getUsers);
 router.put("/users/:id/approval", authenticate, authorizeRoles("admin"), approvalValidation, validateRequest, updateUserApproval);
+router.delete("/users/:id", authenticate, authorizeRoles("admin"), userIdValidation, validateRequest, deleteStaffUser);
 
 export default router;

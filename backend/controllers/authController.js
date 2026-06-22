@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { body } from "express-validator";
+import { body, param } from "express-validator";
 import { departments } from "../constants/departments.js";
 import User from "../models/User.js";
 import { sendPasswordResetEmail } from "../services/mailService.js";
@@ -102,6 +102,8 @@ export const approvalValidation = [
     .custom((value) => value === "" || departments.includes(value))
     .withMessage("Department must be a valid department."),
 ];
+
+export const userIdValidation = [param("id").isMongoId().withMessage("User id is invalid.")];
 
 export const register = async (req, res, next) => {
   try {
@@ -221,6 +223,33 @@ export const updateUserApproval = async (req, res, next) => {
       success: true,
       message: "User updated successfully.",
       data: mapUser(updated),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteStaffUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      const error = new Error("User not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (user.role !== "staff") {
+      const error = new Error("Only staff accounts can be permanently removed.");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    await user.deleteOne();
+
+    res.json({
+      success: true,
+      message: "Staff account permanently removed. Existing workflow records were preserved.",
     });
   } catch (error) {
     next(error);

@@ -18,6 +18,7 @@ const AdminPage = () => {
   const [loading, setLoading] = useState(true);
   const [restoringRecordId, setRestoringRecordId] = useState("");
   const [restoringDprId, setRestoringDprId] = useState("");
+  const [removingUserId, setRemovingUserId] = useState("");
 
   const loadAdminData = async () => {
     setLoading(true);
@@ -85,6 +86,28 @@ const AdminPage = () => {
       await loadAdminData();
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to update department.");
+    }
+  };
+
+  const handleRemoveStaff = async (user) => {
+    const confirmed = window.confirm(
+      `Permanently remove ${user.name}'s staff account? This cannot be undone. Their workflow records and uploaded files will be preserved.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setRemovingUserId(user.id);
+
+    try {
+      await authApi.removeStaffUser(user.id);
+      toast.success("Staff account permanently removed.");
+      await loadAdminData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to remove staff account.");
+    } finally {
+      setRemovingUserId("");
     }
   };
 
@@ -224,6 +247,18 @@ const AdminPage = () => {
                           >
                             Make {user.role === "admin" ? "Staff" : "Admin"}
                           </button>
+                          {user.role === "staff" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveStaff(user)}
+                              disabled={removingUserId === user.id}
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
+                              title="Permanently remove this staff account"
+                            >
+                              <Trash2 size={14} />
+                              {removingUserId === user.id ? "Removing..." : "Remove Staff"}
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

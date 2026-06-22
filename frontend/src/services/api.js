@@ -36,6 +36,7 @@ export const authApi = {
   resetPassword: (payload) => api.post("/auth/reset-password", payload),
   getUsers: () => api.get("/auth/users"),
   updateUserApproval: (id, payload) => api.put(`/auth/users/${id}/approval`, payload),
+  removeStaffUser: (id) => api.delete(`/auth/users/${id}`),
 };
 
 export const recordsApi = {
