@@ -3,20 +3,19 @@
 @tailwind utilities;
 
 :root {
-  color: #3e2b2e;
-  background: #fff7f3;
+  color: #1b2733;
+  background: #f4f6f8;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  color: #3e2b2e;
+  color: #1b2733;
   background:
-    radial-gradient(circle at top right, rgba(242, 184, 181, 0.48), transparent 30%),
-    radial-gradient(circle at bottom left, rgba(232, 153, 159, 0.24), transparent 32%),
-    radial-gradient(circle at 55% 100%, rgba(250, 222, 204, 0.5), transparent 28%),
-    #fff7f3;
+    radial-gradient(circle at top right, rgba(155, 196, 215, 0.28), transparent 31%),
+    radial-gradient(circle at bottom left, rgba(220, 181, 137, 0.16), transparent 34%),
+    #f4f6f8;
 }
 
 #root {

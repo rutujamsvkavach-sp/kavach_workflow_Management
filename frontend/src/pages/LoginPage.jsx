@@ -51,8 +51,8 @@ const LoginPage = () => {
     <div className="min-h-screen bg-page px-4 py-5 sm:px-6 lg:px-10 lg:py-10">
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-[1440px] overflow-hidden rounded-[32px] border border-white/80 bg-card shadow-soft lg:grid-cols-[1.1fr,0.9fr]">
         <section className="relative overflow-hidden bg-sidebar px-8 py-9 text-white sm:px-12 lg:px-14 lg:py-12">
-          <div className="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-[#F6B8B7]/25 blur-3xl" />
-          <div className="absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-[#F2A7AC]/20 blur-3xl" />
+          <div className="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-[#8FB7C9]/25 blur-3xl" />
+          <div className="absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-[#DDAE87]/20 blur-3xl" />
           <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.04)_45%,transparent_100%)]" />
           <div className="relative flex min-h-full flex-col">
             <div className="flex items-center gap-4">
@@ -85,7 +85,7 @@ const LoginPage = () => {
                 { label: "Protected access", icon: ShieldCheck },
               ].map((feature) => (
                 <div key={feature.label} className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm">
-                  <feature.icon size={18} className="text-[#FFE4DE]" />
+                  <feature.icon size={18} className="text-[#D9EAF1]" />
                   <p className="mt-5 text-sm font-semibold leading-5 text-white">{feature.label}</p>
                 </div>
               ))}
