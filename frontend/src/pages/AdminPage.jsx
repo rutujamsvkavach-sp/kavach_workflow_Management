@@ -8,7 +8,7 @@ import { Spinner } from "../components/ui/Spinner";
 import StatusBadge from "../components/ui/StatusBadge";
 import { authApi, dprApi, recordsApi } from "../services/api";
 import { departments } from "../constants/departments";
-import { getAssignedDepartments } from "../utils/access";
+import { getAssignedDepartments, getRoleLabel } from "../utils/access";
 import { matchesSearch } from "../utils/search";
 
 const AdminPage = () => {
@@ -62,11 +62,11 @@ const AdminPage = () => {
     }
   };
 
-  const toggleRole = async (user) => {
+  const updateRole = async (user, role) => {
     try {
       await authApi.updateUserApproval(user.id, {
         approved: user.approved,
-        role: user.role === "admin" ? "staff" : "admin",
+        role,
         departments: getAssignedDepartments(user),
       });
       toast.success("User role updated.");
@@ -243,7 +243,7 @@ const AdminPage = () => {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <StatusBadge label={user.role} variant={user.role} />
+                        <StatusBadge label={getRoleLabel(user.role)} variant={user.role} />
                       </td>
                       <td className="px-4 py-4">
                         <StatusBadge label={user.approved ? "Approved" : "Pending"} variant={user.approved ? "approved" : "pending"} />
@@ -258,13 +258,16 @@ const AdminPage = () => {
                             <CheckCircle2 size={14} />
                             {user.approved ? "Suspend" : "Approve"}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleRole(user)}
-                            className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                          <select
+                            value={user.role}
+                            onChange={(event) => updateRole(user, event.target.value)}
+                            className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 outline-none transition focus:ring-2 focus:ring-amber-200"
+                            title="Change account access role"
                           >
-                            Make {user.role === "admin" ? "Staff" : "Admin"}
-                          </button>
+                            <option value="staff">Staff</option>
+                            <option value="viewer">Admin Viewer (read-only)</option>
+                            <option value="admin">Admin</option>
+                          </select>
                           {user.role === "staff" ? (
                             <button
                               type="button"

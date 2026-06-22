@@ -77,7 +77,7 @@ export const loginValidation = [
 
 export const approvalValidation = [
   body("approved").isBoolean().withMessage("Approved must be true or false."),
-  body("role").optional().isIn(["admin", "staff"]).withMessage("Role must be admin or staff."),
+  body("role").optional().isIn(["admin", "staff", "viewer"]).withMessage("Role must be admin, staff, or viewer."),
   body("department")
     .optional()
     .custom((value) => value === "" || departments.includes(value))

@@ -11,6 +11,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
+import { isReadOnlyUser } from "../utils/access";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
 import AccountsPage from "./AccountsPage";
@@ -26,6 +27,7 @@ const DepartmentPage = () => {
   const { departmentName } = useParams();
   const department = decodeURIComponent(departmentName);
   const { user } = useAuth();
+  const isReadOnly = isReadOnlyUser(user);
 
   if (department === "DESIGN CHECKING") {
     return <DesignCheckingPage />;
@@ -136,6 +138,7 @@ const DepartmentPage = () => {
         title={department}
         description={`Manage ${department} workflow records, attach field documents, and review operational progress from a responsive control view.`}
         action={
+          !isReadOnly ? (
           <button
             type="button"
             onClick={() => {
@@ -147,6 +150,7 @@ const DepartmentPage = () => {
             <Plus size={18} />
             Add Record
           </button>
+          ) : null
         }
       />
 
@@ -181,25 +185,31 @@ const DepartmentPage = () => {
           <RecordTable
             records={filteredRecords}
             canDelete={user.role === "admin"}
-            onEdit={(record) => {
-              setSelectedRecord(record);
-              setModalOpen(true);
-            }}
+            onEdit={
+              !isReadOnly
+                ? (record) => {
+                    setSelectedRecord(record);
+                    setModalOpen(true);
+                  }
+                : undefined
+            }
             onDelete={(record) => setDeleteTarget(record)}
           />
         </div>
       )}
 
-      <RecordFormModal
-        open={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setSelectedRecord(null);
-        }}
-        onSubmit={handleSave}
-        record={selectedRecord}
-        defaultDepartment={department}
-      />
+      {!isReadOnly ? (
+        <RecordFormModal
+          open={modalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setSelectedRecord(null);
+          }}
+          onSubmit={handleSave}
+          record={selectedRecord}
+          defaultDepartment={department}
+        />
+      ) : null}
 
       <ConfirmationModal
         open={Boolean(deleteTarget)}

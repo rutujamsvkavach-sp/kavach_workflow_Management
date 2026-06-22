@@ -8,7 +8,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { departments } from "../constants/departments";
 import { useAuth } from "../context/AuthContext";
 import { dprApi } from "../services/api";
-import { getVisibleDepartments } from "../utils/access";
+import { getVisibleDepartments, isReadOnlyUser } from "../utils/access";
 
 const DPR_ROW_FIELDS = [
   { key: "department", label: "Department" },
@@ -79,6 +79,7 @@ const buildExcelTableMarkup = (rows) => {
 const DprPage = () => {
   const { user } = useAuth();
   const canDelete = user?.role === "admin";
+  const isReadOnly = isReadOnlyUser(user);
   const visibleDepartments = getVisibleDepartments(user);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [searchValue, setSearchValue] = useState("");
@@ -254,14 +255,16 @@ const DprPage = () => {
               <Download size={16} />
               Download Excel
             </button>
-            <button
-              type="button"
-              onClick={handleAddRow}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-hover"
-            >
-              <Plus size={18} />
-              Add Row
-            </button>
+            {!isReadOnly ? (
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-hover"
+              >
+                <Plus size={18} />
+                Add Row
+              </button>
+            ) : null}
           </div>
         }
       />
@@ -315,6 +318,7 @@ const DprPage = () => {
                         <select
                           value={row.department}
                           onChange={(event) => handleChange(row.id, "department", event.target.value)}
+                          disabled={isReadOnly}
                           className="w-48 rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                         >
                           {visibleDepartments.map((department) => (
@@ -330,6 +334,7 @@ const DprPage = () => {
                             rows={3}
                             value={row[field.key] || ""}
                             onChange={(event) => handleChange(row.id, field.key, event.target.value)}
+                            disabled={isReadOnly}
                             className="min-w-[220px] rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                             placeholder={`Enter ${field.label.toLowerCase()}`}
                           />
@@ -337,15 +342,17 @@ const DprPage = () => {
                       ))}
                       <td className="px-4 py-4">
                         <div className="flex min-w-[180px] flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveRow(row)}
-                            disabled={savingRowId === row.id}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-hover disabled:cursor-not-allowed disabled:opacity-70"
-                          >
-                            <Save size={14} />
-                            {savingRowId === row.id ? "Saving..." : "Save"}
-                          </button>
+                          {!isReadOnly ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSaveRow(row)}
+                              disabled={savingRowId === row.id}
+                              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-hover disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              <Save size={14} />
+                              {savingRowId === row.id ? "Saving..." : "Save"}
+                            </button>
+                          ) : null}
                           {canDelete ? (
                             <button
                               type="button"

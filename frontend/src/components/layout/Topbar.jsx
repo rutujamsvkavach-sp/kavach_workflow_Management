@@ -1,6 +1,7 @@
 import { Bell, ChevronDown, LogOut, Search, X } from "lucide-react";
 import { useState } from "react";
 import { useNotifications } from "../../context/NotificationContext";
+import { getRoleLabel } from "../../utils/access";
 
 const formatTimeAgo = (value) => {
   const diffMs = Date.now() - new Date(value).getTime();
@@ -132,7 +133,7 @@ const Topbar = ({
               <div className="text-left">
                 <p>{user?.name}</p>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{user?.staffId || "No ID"}</p>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{user?.role}</p>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{getRoleLabel(user?.role)}</p>
               </div>
               <ChevronDown size={16} className={menuOpen ? "rotate-180 transition" : "transition"} />
             </button>

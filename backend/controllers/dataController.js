@@ -384,6 +384,14 @@ const assertDepartmentAccess = (user, requestedDepartment) => {
   }
 };
 
+const assertCanManageRecords = (user) => {
+  if (user.role === "viewer") {
+    const error = new Error("Viewer accounts have read-only access and cannot modify records.");
+    error.statusCode = 403;
+    throw error;
+  }
+};
+
 export const dataValidation = [
   body("department").trim().notEmpty().withMessage("Department is required."),
   body("title").trim().notEmpty().withMessage("Title is required."),
@@ -555,6 +563,7 @@ export const getData = async (req, res, next) => {
 
 export const createData = async (req, res, next) => {
   try {
+    assertCanManageRecords(req.user);
     assertDepartmentAccess(req.user, req.body.department);
 
     const record = await DepartmentRecord.create({
@@ -590,6 +599,7 @@ export const createData = async (req, res, next) => {
 
 export const updateData = async (req, res, next) => {
   try {
+    assertCanManageRecords(req.user);
     const existing = await DepartmentRecord.findById(req.params.id).lean();
 
     if (!existing) {

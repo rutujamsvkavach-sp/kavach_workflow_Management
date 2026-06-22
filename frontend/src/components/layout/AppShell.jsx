@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useAuth } from "../../context/AuthContext";
+import { isReadOnlyUser } from "../../utils/access";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
@@ -21,6 +22,11 @@ const AppShell = ({ children, searchValue, onSearchChange, searchPlaceholder, se
             searchPlaceholder={searchPlaceholder}
             searchDisabled={searchDisabled}
           />
+          {isReadOnlyUser(user) ? (
+            <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-medium text-primary">
+              Viewer access: you can view, open links, download files, and export data. Editing, uploads, and deletion are disabled.
+            </div>
+          ) : null}
           {children}
         </main>
       </div>

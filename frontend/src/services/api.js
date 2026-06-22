@@ -6,6 +6,22 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("kavach_token");
+  let user = null;
+
+  try {
+    user = JSON.parse(localStorage.getItem("kavach_user") || "null");
+  } catch {
+    localStorage.removeItem("kavach_user");
+  }
+
+  if (user?.role === "viewer" && ["post", "put", "patch", "delete"].includes(String(config.method || "").toLowerCase())) {
+    return Promise.reject({
+      response: {
+        status: 403,
+        data: { message: "Viewer accounts have read-only access." },
+      },
+    });
+  }
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

@@ -1,5 +1,6 @@
 const statusStyles = {
   admin: "bg-primary/10 text-primary",
+  viewer: "bg-indigo-100 text-indigo-700",
   staff: "bg-amber-100 text-amber-700",
   approved: "bg-emerald-100 text-emerald-700",
   pending: "bg-accent/10 text-accent",

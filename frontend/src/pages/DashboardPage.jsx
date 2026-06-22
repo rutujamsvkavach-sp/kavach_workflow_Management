@@ -8,7 +8,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
-import { getVisibleDepartments } from "../utils/access";
+import { getRoleLabel, getVisibleDepartments } from "../utils/access";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
 
@@ -75,7 +75,7 @@ const DashboardPage = () => {
             <StatCard label="Total Records" value={records.length} hint={user?.role === "admin" ? "Across all operational departments" : "Across your assigned departments"} />
             <StatCard label="Visible Records" value={visibleRecords.length} hint="Filtered by the active search term" />
             <StatCard label="Departments" value={visibleDepartments.length} hint={user?.role === "admin" ? "Configured workflow divisions" : "Your assigned workflow divisions"} accent="accent" />
-            <StatCard label="Role Access" value={user.role === "admin" ? "Admin" : "Staff"} hint="Current access profile" />
+            <StatCard label="Role Access" value={getRoleLabel(user.role)} hint={user.role === "viewer" ? "Read-only access across all departments" : "Current access profile"} />
           </div>
 
           {search ? (

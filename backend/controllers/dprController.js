@@ -49,6 +49,14 @@ const assertDepartmentAccess = (user, requestedDepartment) => {
   }
 };
 
+const assertCanManageDpr = (user) => {
+  if (user.role === "viewer") {
+    const error = new Error("Viewer accounts have read-only access and cannot modify DPR rows.");
+    error.statusCode = 403;
+    throw error;
+  }
+};
+
 export const dprQueryValidation = [query("date").notEmpty().withMessage("Date is required.").isISO8601().withMessage("Date must be valid.")];
 export const dprRangeQueryValidation = [
   query("startDate").notEmpty().withMessage("Start date is required.").isISO8601().withMessage("Start date must be valid."),
@@ -122,6 +130,7 @@ export const getDprEntriesByRange = async (req, res, next) => {
 
 export const createDprEntry = async (req, res, next) => {
   try {
+    assertCanManageDpr(req.user);
     assertDepartmentAccess(req.user, req.body.department);
 
     const entry = await DprEntry.create({
@@ -149,6 +158,7 @@ export const createDprEntry = async (req, res, next) => {
 
 export const updateDprEntry = async (req, res, next) => {
   try {
+    assertCanManageDpr(req.user);
     const existing = await DprEntry.findById(req.params.id).lean();
 
     if (!existing) {
