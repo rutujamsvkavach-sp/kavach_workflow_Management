@@ -4,17 +4,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#5576B8",
-        accent: "#C96A78",
-        sidebar: "#33486F",
-        page: "#F5F2FA",
-        card: "#FFFDFC",
-        body: "#334155",
-        border: "#DDD6E8",
-        hover: "#405F9C",
+        primary: "#A24E5A",
+        accent: "#C46C72",
+        sidebar: "#542D36",
+        page: "#FFF7F3",
+        card: "#FFFEFC",
+        body: "#3E2B2E",
+        border: "#EBD8D2",
+        hover: "#853943",
       },
       boxShadow: {
-        soft: "0 18px 45px rgba(85, 118, 184, 0.12)",
+        soft: "0 18px 45px rgba(162, 78, 90, 0.12)",
       },
       borderRadius: {
         lg: "0.875rem",
