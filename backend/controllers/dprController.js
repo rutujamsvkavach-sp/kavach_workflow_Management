@@ -1,4 +1,5 @@
 import { body, param, query } from "express-validator";
+import { resolveUserDepartments } from "../constants/departments.js";
 import DprEntry from "../models/DprEntry.js";
 
 const normalizeDate = (value) => {
@@ -33,16 +34,16 @@ const assertDepartmentAccess = (user, requestedDepartment) => {
     return;
   }
 
-  const assignedDepartment = String(user.department || "").trim();
+  const assignedDepartments = resolveUserDepartments(user);
 
-  if (!assignedDepartment) {
-    const error = new Error("Your account has not been assigned to a department. Please contact an administrator.");
+  if (!assignedDepartments.length) {
+    const error = new Error("Your account has not been assigned to any department. Please contact an administrator.");
     error.statusCode = 403;
     throw error;
   }
 
-  if (requestedDepartment && requestedDepartment !== assignedDepartment) {
-    const error = new Error("You can only access your assigned department.");
+  if (requestedDepartment && !assignedDepartments.includes(requestedDepartment)) {
+    const error = new Error("You can only access your assigned departments.");
     error.statusCode = 403;
     throw error;
   }
@@ -74,7 +75,7 @@ export const getDprEntries = async (req, res, next) => {
 
     if (req.user.role === "staff") {
       assertDepartmentAccess(req.user);
-      queryFilter.department = req.user.department;
+      queryFilter.department = { $in: resolveUserDepartments(req.user) };
     }
 
     const rows = await DprEntry.find(queryFilter).sort({ department: 1, updatedAt: -1 }).lean();
@@ -103,7 +104,7 @@ export const getDprEntriesByRange = async (req, res, next) => {
 
     if (req.user.role === "staff") {
       assertDepartmentAccess(req.user);
-      queryFilter.department = req.user.department;
+      queryFilter.department = { $in: resolveUserDepartments(req.user) };
     }
 
     const rows = await DprEntry.find(queryFilter)

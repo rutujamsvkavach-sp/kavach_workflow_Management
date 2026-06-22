@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { body, param } from "express-validator";
-import { departments } from "../constants/departments.js";
+import { departments, resolveUserDepartments } from "../constants/departments.js";
 import User from "../models/User.js";
 import { sendPasswordResetEmail } from "../services/mailService.js";
 import { generateToken } from "../utils/auth.js";
@@ -42,15 +42,20 @@ const ensureStaffId = async (user) => {
   return staffId;
 };
 
-const mapUser = (user) => ({
-  id: String(user._id || user.id),
-  staffId: user.staffId,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  department: user.department || "",
-  approved: Boolean(user.approved),
-});
+const mapUser = (user) => {
+  const assignedDepartments = resolveUserDepartments(user);
+
+  return {
+    id: String(user._id || user.id),
+    staffId: user.staffId,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    department: assignedDepartments[0] || "",
+    departments: assignedDepartments,
+    approved: Boolean(user.approved),
+  };
+};
 
 const getPasswordResetUrl = (token) => {
   const configuredUrl = String(process.env.PASSWORD_RESET_URL || "").trim();
@@ -101,6 +106,12 @@ export const approvalValidation = [
     .optional()
     .custom((value) => value === "" || departments.includes(value))
     .withMessage("Department must be a valid department."),
+  body("departments")
+    .optional()
+    .isArray()
+    .withMessage("Departments must be a valid list.")
+    .custom((values) => values.every((value) => departments.includes(value)))
+    .withMessage("Each department must be valid."),
 ];
 
 export const userIdValidation = [param("id").isMongoId().withMessage("User id is invalid.")];
@@ -132,6 +143,7 @@ export const register = async (req, res, next) => {
       password: hashedPassword,
       role,
       department: "",
+      departments: [],
       approved: true,
     });
 
@@ -205,10 +217,17 @@ export const getUsers = async (_req, res, next) => {
 
 export const updateUserApproval = async (req, res, next) => {
   try {
+    const requestedDepartments = Array.isArray(req.body.departments)
+      ? [...new Set(req.body.departments.map((department) => String(department || "").trim()).filter((department) => departments.includes(department)))]
+      : null;
+
     const update = {
       approved: req.body.approved,
       ...(req.body.role ? { role: req.body.role } : {}),
-      ...(Object.hasOwn(req.body, "department") ? { department: req.body.department } : {}),
+      ...(requestedDepartments ? { departments: requestedDepartments, department: requestedDepartments[0] || "" } : {}),
+      ...(!requestedDepartments && Object.hasOwn(req.body, "department")
+        ? { department: req.body.department, departments: req.body.department ? [req.body.department] : [] }
+        : {}),
     };
 
     const updated = await User.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true }).lean();

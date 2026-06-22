@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { useAuth } from "./context/AuthContext";
+import { getVisibleDepartments } from "./utils/access";
 import AdminPage from "./pages/AdminPage";
 import DashboardPage from "./pages/DashboardPage";
 import DepartmentPage from "./pages/DepartmentPage";
@@ -22,7 +23,7 @@ const ProtectedRoute = ({ children, adminOnly = false, department }) => {
     return <Navigate to="/" replace />;
   }
 
-  if (requestedDepartment && user?.role === "staff" && user.department !== requestedDepartment) {
+  if (requestedDepartment && user?.role === "staff" && !getVisibleDepartments(user).includes(requestedDepartment)) {
     return <Navigate to="/" replace />;
   }
 

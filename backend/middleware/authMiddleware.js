@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { resolveUserDepartments } from "../constants/departments.js";
 import User from "../models/User.js";
 
 export const authenticate = async (req, _res, next) => {
@@ -21,13 +22,16 @@ export const authenticate = async (req, _res, next) => {
       throw error;
     }
 
+    const departments = resolveUserDepartments(user);
+
     req.user = {
       id: String(user._id),
       staffId: user.staffId,
       name: user.name,
       email: user.email,
       role: user.role,
-      department: user.department || "",
+      department: departments[0] || "",
+      departments,
       approved: user.approved,
     };
 

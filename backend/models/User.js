@@ -37,6 +37,11 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    departments: {
+      type: [String],
+      enum: departments,
+      default: [],
+    },
     approved: {
       type: Boolean,
       default: true,

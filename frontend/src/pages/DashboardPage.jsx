@@ -6,9 +6,9 @@ import AppShell from "../components/layout/AppShell";
 import StatCard from "../components/StatCard";
 import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
-import { departments } from "../constants/departments";
 import { useAuth } from "../context/AuthContext";
 import { recordsApi } from "../services/api";
+import { getVisibleDepartments } from "../utils/access";
 import { getFileSearchTerms } from "../utils/files";
 import { matchesSearch } from "../utils/search";
 
@@ -48,7 +48,7 @@ const DashboardPage = () => {
     );
   }, [records, search]);
 
-  const visibleDepartments = user?.role === "admin" ? departments : user?.department ? [user.department] : [];
+  const visibleDepartments = getVisibleDepartments(user);
 
   const departmentSummary = visibleDepartments.map((department) => ({
     department,
@@ -72,9 +72,9 @@ const DashboardPage = () => {
       ) : (
         <div className="space-y-6">
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Total Records" value={records.length} hint={user?.role === "admin" ? "Across all operational departments" : "In your assigned department"} />
+            <StatCard label="Total Records" value={records.length} hint={user?.role === "admin" ? "Across all operational departments" : "Across your assigned departments"} />
             <StatCard label="Visible Records" value={visibleRecords.length} hint="Filtered by the active search term" />
-            <StatCard label="Departments" value={visibleDepartments.length} hint={user?.role === "admin" ? "Configured workflow divisions" : "Your assigned workflow division"} accent="accent" />
+            <StatCard label="Departments" value={visibleDepartments.length} hint={user?.role === "admin" ? "Configured workflow divisions" : "Your assigned workflow divisions"} accent="accent" />
             <StatCard label="Role Access" value={user.role === "admin" ? "Admin" : "Staff"} hint="Current access profile" />
           </div>
 

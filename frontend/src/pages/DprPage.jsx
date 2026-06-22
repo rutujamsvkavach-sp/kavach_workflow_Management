@@ -8,6 +8,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { departments } from "../constants/departments";
 import { useAuth } from "../context/AuthContext";
 import { dprApi } from "../services/api";
+import { getVisibleDepartments } from "../utils/access";
 
 const DPR_ROW_FIELDS = [
   { key: "department", label: "Department" },
@@ -78,7 +79,7 @@ const buildExcelTableMarkup = (rows) => {
 const DprPage = () => {
   const { user } = useAuth();
   const canDelete = user?.role === "admin";
-  const visibleDepartments = user?.role === "admin" ? departments : user?.department ? [user.department] : [];
+  const visibleDepartments = getVisibleDepartments(user);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [searchValue, setSearchValue] = useState("");
   const [rows, setRows] = useState([]);
@@ -314,8 +315,7 @@ const DprPage = () => {
                         <select
                           value={row.department}
                           onChange={(event) => handleChange(row.id, "department", event.target.value)}
-                          disabled={user?.role === "staff"}
-                          className="w-48 rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-slate-100"
+                          className="w-48 rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                         >
                           {visibleDepartments.map((department) => (
                             <option key={department} value={department}>

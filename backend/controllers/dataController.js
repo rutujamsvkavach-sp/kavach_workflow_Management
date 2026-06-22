@@ -1,4 +1,5 @@
 import { body, param, query } from "express-validator";
+import { resolveUserDepartments } from "../constants/departments.js";
 import DepartmentRecord from "../models/DepartmentRecord.js";
 
 const getFileNameFromUrl = (url) => {
@@ -368,16 +369,16 @@ const assertDepartmentAccess = (user, requestedDepartment) => {
     return;
   }
 
-  const assignedDepartment = String(user.department || "").trim();
+  const assignedDepartments = resolveUserDepartments(user);
 
-  if (!assignedDepartment) {
-    const error = new Error("Your account has not been assigned to a department. Please contact an administrator.");
+  if (!assignedDepartments.length) {
+    const error = new Error("Your account has not been assigned to any department. Please contact an administrator.");
     error.statusCode = 403;
     throw error;
   }
 
-  if (requestedDepartment && requestedDepartment !== assignedDepartment) {
-    const error = new Error("You can only access your assigned department.");
+  if (requestedDepartment && !assignedDepartments.includes(requestedDepartment)) {
+    const error = new Error("You can only access your assigned departments.");
     error.statusCode = 403;
     throw error;
   }
@@ -417,7 +418,7 @@ export const getData = async (req, res, next) => {
 
     if (req.user.role === "staff") {
       assertDepartmentAccess(req.user, department);
-      queryFilter.department = req.user.department;
+      queryFilter.department = department || { $in: resolveUserDepartments(req.user) };
     } else if (department) {
       queryFilter.department = department;
     }

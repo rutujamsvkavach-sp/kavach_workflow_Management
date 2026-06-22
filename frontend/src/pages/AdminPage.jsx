@@ -8,6 +8,7 @@ import { Spinner } from "../components/ui/Spinner";
 import StatusBadge from "../components/ui/StatusBadge";
 import { authApi, dprApi, recordsApi } from "../services/api";
 import { departments } from "../constants/departments";
+import { getAssignedDepartments } from "../utils/access";
 import { matchesSearch } from "../utils/search";
 
 const AdminPage = () => {
@@ -44,7 +45,7 @@ const AdminPage = () => {
   }, []);
 
   const filteredUsers = users.filter((user) =>
-    matchesSearch(search, [user.name, user.email, user.role, user.department, user.staffId, user.approved ? "approved active" : "pending suspended"])
+    matchesSearch(search, [user.name, user.email, user.role, getAssignedDepartments(user).join(" "), user.staffId, user.approved ? "approved active" : "pending suspended"])
   );
 
   const toggleApproval = async (user) => {
@@ -52,7 +53,7 @@ const AdminPage = () => {
       await authApi.updateUserApproval(user.id, {
         approved: !user.approved,
         role: user.role,
-        department: user.department || "",
+        departments: getAssignedDepartments(user),
       });
       toast.success("User status updated.");
       await loadAdminData();
@@ -66,7 +67,7 @@ const AdminPage = () => {
       await authApi.updateUserApproval(user.id, {
         approved: user.approved,
         role: user.role === "admin" ? "staff" : "admin",
-        department: user.department || "",
+        departments: getAssignedDepartments(user),
       });
       toast.success("User role updated.");
       await loadAdminData();
@@ -75,14 +76,14 @@ const AdminPage = () => {
     }
   };
 
-  const updateDepartment = async (user, department) => {
+  const updateDepartments = async (user, selectedDepartments) => {
     try {
       await authApi.updateUserApproval(user.id, {
         approved: user.approved,
         role: user.role,
-        department,
+        departments: selectedDepartments,
       });
-      toast.success("User department updated.");
+      toast.success("User departments updated.");
       await loadAdminData();
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to update department.");
@@ -210,18 +211,35 @@ const AdminPage = () => {
                         {user.role === "admin" ? (
                           <span className="text-sm text-slate-500">All departments</span>
                         ) : (
-                          <select
-                            value={user.department || ""}
-                            onChange={(event) => updateDepartment(user, event.target.value)}
-                            className="min-w-44 rounded-lg border border-border bg-white px-3 py-2 text-sm text-body outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-                          >
-                            <option value="">Assign department</option>
-                            {departments.map((department) => (
-                              <option key={department} value={department}>
-                                {department}
-                              </option>
-                            ))}
-                          </select>
+                          <details className="min-w-52 rounded-lg border border-border bg-white px-3 py-2 text-sm text-body">
+                            <summary className="cursor-pointer font-medium">
+                              {getAssignedDepartments(user).length ? `${getAssignedDepartments(user).length} department(s) assigned` : "Assign departments"}
+                            </summary>
+                            <div className="mt-3 max-h-56 space-y-2 overflow-y-auto border-t border-border pt-3">
+                              {departments.map((department) => {
+                                const assigned = getAssignedDepartments(user).includes(department);
+
+                                return (
+                                  <label key={department} className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={assigned}
+                                      onChange={(event) =>
+                                        updateDepartments(
+                                          user,
+                                          event.target.checked
+                                            ? [...getAssignedDepartments(user), department]
+                                            : getAssignedDepartments(user).filter((assignedDepartment) => assignedDepartment !== department)
+                                        )
+                                      }
+                                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                    />
+                                    {department}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </details>
                         )}
                       </td>
                       <td className="px-4 py-4">
