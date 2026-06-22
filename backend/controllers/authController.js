@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { body } from "express-validator";
+import { departments } from "../constants/departments.js";
 import User from "../models/User.js";
+import { sendPasswordResetEmail } from "../services/mailService.js";
 import { generateToken } from "../utils/auth.js";
 
 const buildStaffIdBase = (name) => {
@@ -39,6 +42,23 @@ const ensureStaffId = async (user) => {
   return staffId;
 };
 
+const mapUser = (user) => ({
+  id: String(user._id || user.id),
+  staffId: user.staffId,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  department: user.department || "",
+  approved: Boolean(user.approved),
+});
+
+const getPasswordResetUrl = (token) => {
+  const configuredUrl = String(process.env.PASSWORD_RESET_URL || "").trim();
+  const clientUrl = configuredUrl || String(process.env.CLIENT_URLS || "http://localhost:5173").split(",")[0].trim();
+
+  return `${clientUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
+};
+
 export const registerValidation = [
   body("name").trim().isLength({ min: 2 }).withMessage("Name must be at least 2 characters."),
   body("email").isEmail().withMessage("Valid email is required.").normalizeEmail(),
@@ -59,9 +79,28 @@ export const loginValidation = [
   body("password").notEmpty().withMessage("Password is required."),
 ];
 
+export const forgotPasswordValidation = [body("email").isEmail().withMessage("Valid email is required.").normalizeEmail()];
+
+export const resetPasswordValidation = [
+  body("token").trim().isLength({ min: 20 }).withMessage("Reset token is invalid."),
+  body("password")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters long.")
+    .matches(/[A-Z]/)
+    .withMessage("Password must include an uppercase letter.")
+    .matches(/[a-z]/)
+    .withMessage("Password must include a lowercase letter.")
+    .matches(/[0-9]/)
+    .withMessage("Password must include a number."),
+];
+
 export const approvalValidation = [
   body("approved").isBoolean().withMessage("Approved must be true or false."),
   body("role").optional().isIn(["admin", "staff"]).withMessage("Role must be admin or staff."),
+  body("department")
+    .optional()
+    .custom((value) => value === "" || departments.includes(value))
+    .withMessage("Department must be a valid department."),
 ];
 
 export const register = async (req, res, next) => {
@@ -90,6 +129,7 @@ export const register = async (req, res, next) => {
       staffId,
       password: hashedPassword,
       role,
+      department: "",
       approved: true,
     });
 
@@ -98,14 +138,7 @@ export const register = async (req, res, next) => {
       message: "User registered successfully.",
       data: {
         token: generateToken(user),
-        user: {
-          id: String(user._id),
-          staffId: user.staffId,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          approved: true,
-        },
+        user: mapUser(user),
       },
     });
   } catch (error) {
@@ -146,14 +179,7 @@ export const login = async (req, res, next) => {
       message: "Login successful.",
       data: {
         token: generateToken(user),
-        user: {
-          id: String(user._id),
-          staffId,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          approved: true,
-        },
+        user: mapUser({ ...user.toObject(), staffId }),
       },
     });
   } catch (error) {
@@ -168,13 +194,7 @@ export const getUsers = async (_req, res, next) => {
 
     res.json({
       success: true,
-      data: users.map((user) => {
-        const { password, _id, ...safeUser } = user.toObject();
-        return {
-          id: String(_id),
-          ...safeUser,
-        };
-      }),
+      data: users.map(mapUser),
     });
   } catch (error) {
     next(error);
@@ -183,14 +203,13 @@ export const getUsers = async (_req, res, next) => {
 
 export const updateUserApproval = async (req, res, next) => {
   try {
-    const updated = await User.findByIdAndUpdate(
-      req.params.id,
-      {
-        approved: req.body.approved,
-        ...(req.body.role ? { role: req.body.role } : {}),
-      },
-      { new: true, runValidators: true }
-    ).lean();
+    const update = {
+      approved: req.body.approved,
+      ...(req.body.role ? { role: req.body.role } : {}),
+      ...(Object.hasOwn(req.body, "department") ? { department: req.body.department } : {}),
+    };
+
+    const updated = await User.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true }).lean();
 
     if (!updated) {
       const error = new Error("User not found.");
@@ -201,15 +220,66 @@ export const updateUserApproval = async (req, res, next) => {
     res.json({
       success: true,
       message: "User updated successfully.",
-      data: {
-        id: String(updated._id),
-        staffId: updated.staffId,
-        name: updated.name,
-        email: updated.email,
-        role: updated.role,
-        approved: updated.approved,
-      },
+      data: mapUser(updated),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const normalizedEmail = String(req.body.email).toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      res.json({ success: true, message: "If an account exists for this email, a reset link has been sent." });
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    user.passwordResetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await sendPasswordResetEmail({
+        recipient: user.email,
+        resetUrl: getPasswordResetUrl(token),
+      });
+    } catch (emailError) {
+      user.passwordResetTokenHash = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      throw emailError;
+    }
+
+    res.json({ success: true, message: "If an account exists for this email, a reset link has been sent." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const passwordResetTokenHash = crypto.createHash("sha256").update(req.body.token).digest("hex");
+    const user = await User.findOne({
+      passwordResetTokenHash,
+      passwordResetExpires: { $gt: new Date() },
+    }).select("+passwordResetTokenHash +passwordResetExpires");
+
+    if (!user) {
+      const error = new Error("This password reset link is invalid or has expired.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    user.password = await bcrypt.hash(req.body.password, 12);
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: "Password reset successfully. You can now sign in." });
   } catch (error) {
     next(error);
   }

@@ -1,0 +1,13 @@
+export const departments = [
+  "DPR",
+  "DESIGN CHECKING",
+  "DOCUMENT",
+  "MONITORING",
+  "WORKS",
+  "LOCO TRIALS",
+  "SITE WORK IMAGES",
+  "TELECOM RECORDS",
+  "CIVIL",
+  "TAG PLACEMENT PLANS",
+  "ACCOUNTS",
+];

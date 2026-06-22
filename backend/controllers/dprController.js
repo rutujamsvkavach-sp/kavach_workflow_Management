@@ -28,6 +28,26 @@ const mapEntry = (entry) => ({
   deletedByName: entry.deletedByName || "",
 });
 
+const assertDepartmentAccess = (user, requestedDepartment) => {
+  if (user.role !== "staff") {
+    return;
+  }
+
+  const assignedDepartment = String(user.department || "").trim();
+
+  if (!assignedDepartment) {
+    const error = new Error("Your account has not been assigned to a department. Please contact an administrator.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (requestedDepartment && requestedDepartment !== assignedDepartment) {
+    const error = new Error("You can only access your assigned department.");
+    error.statusCode = 403;
+    throw error;
+  }
+};
+
 export const dprQueryValidation = [query("date").notEmpty().withMessage("Date is required.").isISO8601().withMessage("Date must be valid.")];
 export const dprRangeQueryValidation = [
   query("startDate").notEmpty().withMessage("Start date is required.").isISO8601().withMessage("Start date must be valid."),
@@ -50,7 +70,14 @@ export const dprIdValidation = [param("id").trim().notEmpty().withMessage("DPR e
 export const getDprEntries = async (req, res, next) => {
   try {
     const reportDate = normalizeDate(req.query.date);
-    const rows = await DprEntry.find({ reportDate, deletedAt: null }).sort({ department: 1, updatedAt: -1 }).lean();
+    const queryFilter = { reportDate, deletedAt: null };
+
+    if (req.user.role === "staff") {
+      assertDepartmentAccess(req.user);
+      queryFilter.department = req.user.department;
+    }
+
+    const rows = await DprEntry.find(queryFilter).sort({ department: 1, updatedAt: -1 }).lean();
 
     res.json({
       success: true,
@@ -66,13 +93,20 @@ export const getDprEntriesByRange = async (req, res, next) => {
     const startDate = normalizeDate(req.query.startDate);
     const endDate = normalizeDate(req.query.endDate);
 
-    const rows = await DprEntry.find({
+    const queryFilter = {
       reportDate: {
         $gte: startDate,
         $lte: endDate,
       },
       deletedAt: null,
-    })
+    };
+
+    if (req.user.role === "staff") {
+      assertDepartmentAccess(req.user);
+      queryFilter.department = req.user.department;
+    }
+
+    const rows = await DprEntry.find(queryFilter)
       .sort({ reportDate: -1, department: 1, updatedAt: -1 })
       .lean();
 
@@ -87,6 +121,8 @@ export const getDprEntriesByRange = async (req, res, next) => {
 
 export const createDprEntry = async (req, res, next) => {
   try {
+    assertDepartmentAccess(req.user, req.body.department);
+
     const entry = await DprEntry.create({
       reportDate: normalizeDate(req.body.reportDate),
       department: req.body.department,
@@ -112,6 +148,17 @@ export const createDprEntry = async (req, res, next) => {
 
 export const updateDprEntry = async (req, res, next) => {
   try {
+    const existing = await DprEntry.findById(req.params.id).lean();
+
+    if (!existing) {
+      const error = new Error("DPR row not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    assertDepartmentAccess(req.user, existing.department);
+    assertDepartmentAccess(req.user, req.body.department);
+
     const updated = await DprEntry.findByIdAndUpdate(
       req.params.id,
       {
@@ -147,6 +194,12 @@ export const updateDprEntry = async (req, res, next) => {
 
 export const deleteDprEntry = async (req, res, next) => {
   try {
+    if (req.user.role !== "admin") {
+      const error = new Error("Only admins can delete DPR rows.");
+      error.statusCode = 403;
+      throw error;
+    }
+
     const deleted = await DprEntry.findOneAndUpdate(
       { _id: req.params.id, deletedAt: null },
       {

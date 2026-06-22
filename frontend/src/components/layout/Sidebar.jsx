@@ -5,9 +5,10 @@ import logo from "../../assets/kavach-logo.jpeg";
 import { departments } from "../../constants/departments";
 
 const Sidebar = ({ open, onToggle, user }) => {
+  const visibleDepartments = user?.role === "admin" ? departments : user?.department ? [user.department] : [];
   const navItems = [
     { label: "Dashboard", path: "/" },
-    ...departments.map((department) => ({
+    ...visibleDepartments.map((department) => ({
       label: department,
       path: `/departments/${encodeURIComponent(department)}`,
     })),
@@ -51,6 +52,7 @@ const Sidebar = ({ open, onToggle, user }) => {
               <p className="text-sm font-semibold">{user?.name}</p>
               <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">{user?.staffId || "No ID"}</p>
               <p className="text-xs uppercase tracking-[0.25em] text-white/50">{user?.role}</p>
+              {user?.role === "staff" ? <p className="mt-1 text-xs text-white/60">{user.department || "Department pending"}</p> : null}
             </div>
           </div>
         </div>

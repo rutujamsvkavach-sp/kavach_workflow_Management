@@ -7,6 +7,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { Spinner } from "../components/ui/Spinner";
 import StatusBadge from "../components/ui/StatusBadge";
 import { authApi, dprApi, recordsApi } from "../services/api";
+import { departments } from "../constants/departments";
 import { matchesSearch } from "../utils/search";
 
 const AdminPage = () => {
@@ -42,7 +43,7 @@ const AdminPage = () => {
   }, []);
 
   const filteredUsers = users.filter((user) =>
-    matchesSearch(search, [user.name, user.email, user.role, user.staffId, user.approved ? "approved active" : "pending suspended"])
+    matchesSearch(search, [user.name, user.email, user.role, user.department, user.staffId, user.approved ? "approved active" : "pending suspended"])
   );
 
   const toggleApproval = async (user) => {
@@ -50,6 +51,7 @@ const AdminPage = () => {
       await authApi.updateUserApproval(user.id, {
         approved: !user.approved,
         role: user.role,
+        department: user.department || "",
       });
       toast.success("User status updated.");
       await loadAdminData();
@@ -63,11 +65,26 @@ const AdminPage = () => {
       await authApi.updateUserApproval(user.id, {
         approved: user.approved,
         role: user.role === "admin" ? "staff" : "admin",
+        department: user.department || "",
       });
       toast.success("User role updated.");
       await loadAdminData();
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to update role.");
+    }
+  };
+
+  const updateDepartment = async (user, department) => {
+    try {
+      await authApi.updateUserApproval(user.id, {
+        approved: user.approved,
+        role: user.role,
+        department,
+      });
+      toast.success("User department updated.");
+      await loadAdminData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to update department.");
     }
   };
 
@@ -146,7 +163,7 @@ const AdminPage = () => {
               <table className="min-w-full divide-y divide-border">
                 <thead className="bg-primary text-white">
                   <tr>
-                    {["User", "Staff ID", "Email", "Role", "Status", "Actions"].map((label) => (
+                    {["User", "Staff ID", "Email", "Department", "Role", "Status", "Actions"].map((label) => (
                       <th key={label} className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.22em]">
                         {label}
                       </th>
@@ -166,6 +183,24 @@ const AdminPage = () => {
                       </td>
                       <td className="px-4 py-4 text-sm font-semibold text-primary">{user.staffId || "Pending"}</td>
                       <td className="px-4 py-4 text-sm text-slate-600">{user.email}</td>
+                      <td className="px-4 py-4">
+                        {user.role === "admin" ? (
+                          <span className="text-sm text-slate-500">All departments</span>
+                        ) : (
+                          <select
+                            value={user.department || ""}
+                            onChange={(event) => updateDepartment(user, event.target.value)}
+                            className="min-w-44 rounded-lg border border-border bg-white px-3 py-2 text-sm text-body outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                          >
+                            <option value="">Assign department</option>
+                            {departments.map((department) => (
+                              <option key={department} value={department}>
+                                {department}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </td>
                       <td className="px-4 py-4">
                         <StatusBadge label={user.role} variant={user.role} />
                       </td>
@@ -195,7 +230,7 @@ const AdminPage = () => {
                   ))}
                   {!filteredUsers.length ? (
                     <tr>
-                      <td colSpan="6" className="px-4 py-16 text-center text-sm text-slate-500">
+                      <td colSpan="7" className="px-4 py-16 text-center text-sm text-slate-500">
                         No users match the current filter.
                       </td>
                     </tr>

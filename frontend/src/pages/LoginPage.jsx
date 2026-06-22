@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 
 import logo from "../assets/kavach-logo.jpeg";
 import { useAuth } from "../context/AuthContext";
+import { authApi } from "../services/api";
 
 const initialRegisterState = {
   name: "",
@@ -20,6 +21,8 @@ const LoginPage = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [registerForm, setRegisterForm] = useState(initialRegisterState);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
@@ -44,6 +47,18 @@ const LoginPage = () => {
       navigate("/");
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to register.");
+    }
+  };
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault();
+
+    try {
+      const response = await authApi.forgotPassword({ email: forgotEmail });
+      toast.success(response.data.message || "If an account exists, a reset link has been sent.");
+      setShowForgotPassword(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to send password reset email.");
     }
   };
 
@@ -119,7 +134,39 @@ const LoginPage = () => {
               </div>
             </div>
 
-            {activeTab === "login" ? (
+            {activeTab === "login" && showForgotPassword ? (
+              <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-primary/70">Password Recovery</p>
+                  <h2 className="mt-2 font-display text-4xl text-body">Reset your password</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-500">Enter your account email and we will send a secure reset link.</p>
+                </div>
+
+                <label className="block space-y-2 text-sm font-medium text-body">
+                  Email
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(event) => setForgotEmail(event.target.value)}
+                    required
+                    className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-hover disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {loading ? "Sending Reset Link..." : "Send Reset Link"}
+                  <ArrowRight size={16} />
+                </button>
+
+                <button type="button" onClick={() => setShowForgotPassword(false)} className="w-full text-sm font-semibold text-primary hover:underline">
+                  Back to sign in
+                </button>
+              </form>
+            ) : activeTab === "login" ? (
               <form className="mt-8 space-y-5" onSubmit={handleLogin}>
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.28em] text-primary/70">Authorized Sign In</p>
@@ -147,6 +194,12 @@ const LoginPage = () => {
                     className="w-full rounded-lg border border-border px-4 py-3 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                   />
                 </label>
+
+                <div className="text-right">
+                  <button type="button" onClick={() => setShowForgotPassword(true)} className="text-sm font-semibold text-primary hover:underline">
+                    Forgot password?
+                  </button>
+                </div>
 
                 <button
                   type="submit"

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { departments } from "../constants/departments.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -30,9 +31,23 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "staff"],
       default: "staff",
     },
+    department: {
+      type: String,
+      enum: ["", ...departments],
+      default: "",
+      trim: true,
+    },
     approved: {
       type: Boolean,
       default: true,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
     },
   },
   {

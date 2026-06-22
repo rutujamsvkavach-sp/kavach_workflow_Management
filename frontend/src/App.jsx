@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { useAuth } from "./context/AuthContext";
 import AdminPage from "./pages/AdminPage";
@@ -7,9 +7,12 @@ import DepartmentPage from "./pages/DepartmentPage";
 import DprPage from "./pages/DprPage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
+const ProtectedRoute = ({ children, adminOnly = false, department }) => {
   const { isAuthenticated, user } = useAuth();
+  const { departmentName } = useParams();
+  const requestedDepartment = department || decodeURIComponent(departmentName || "");
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -19,12 +22,17 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     return <Navigate to="/" replace />;
   }
 
+  if (requestedDepartment && user?.role === "staff" && user.department !== requestedDepartment) {
+    return <Navigate to="/" replace />;
+  }
+
   return children;
 };
 
 const App = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route
       path="/"
       element={
@@ -36,7 +44,7 @@ const App = () => (
     <Route
       path="/departments/DPR"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute department="DPR">
           <DprPage />
         </ProtectedRoute>
       }

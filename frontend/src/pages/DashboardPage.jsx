@@ -48,7 +48,9 @@ const DashboardPage = () => {
     );
   }, [records, search]);
 
-  const departmentSummary = departments.map((department) => ({
+  const visibleDepartments = user?.role === "admin" ? departments : user?.department ? [user.department] : [];
+
+  const departmentSummary = visibleDepartments.map((department) => ({
     department,
     count: records.filter((record) => record.department === department).length,
   }));
@@ -70,9 +72,9 @@ const DashboardPage = () => {
       ) : (
         <div className="space-y-6">
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Total Records" value={records.length} hint="Across all operational departments" />
+            <StatCard label="Total Records" value={records.length} hint={user?.role === "admin" ? "Across all operational departments" : "In your assigned department"} />
             <StatCard label="Visible Records" value={visibleRecords.length} hint="Filtered by the active search term" />
-            <StatCard label="Departments" value={departments.length} hint="Configured workflow divisions" accent="accent" />
+            <StatCard label="Departments" value={visibleDepartments.length} hint={user?.role === "admin" ? "Configured workflow divisions" : "Your assigned workflow division"} accent="accent" />
             <StatCard label="Role Access" value={user.role === "admin" ? "Admin" : "Staff"} hint="Current access profile" />
           </div>
 

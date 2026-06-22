@@ -19,7 +19,7 @@ const DPR_ROW_FIELDS = [
   { key: "deficiency", label: "Deficiency" },
 ];
 
-const createEmptyRow = (reportDate) => ({
+const createEmptyRow = (reportDate, department = departments[0] || "DPR") => ({
   id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   reportDate,
   department: departments[0] || "DPR",
@@ -78,6 +78,7 @@ const buildExcelTableMarkup = (rows) => {
 const DprPage = () => {
   const { user } = useAuth();
   const canDelete = user?.role === "admin";
+  const visibleDepartments = user?.role === "admin" ? departments : user?.department ? [user.department] : [];
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [searchValue, setSearchValue] = useState("");
   const [rows, setRows] = useState([]);
@@ -146,7 +147,7 @@ const DprPage = () => {
   };
 
   const handleAddRow = () => {
-    setRows((current) => [createEmptyRow(selectedDate), ...current]);
+    setRows((current) => [createEmptyRow(selectedDate, visibleDepartments[0] || "DPR"), ...current]);
   };
 
   const handleSaveRow = async (row) => {
@@ -313,9 +314,10 @@ const DprPage = () => {
                         <select
                           value={row.department}
                           onChange={(event) => handleChange(row.id, "department", event.target.value)}
-                          className="w-48 rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+                          disabled={user?.role === "staff"}
+                          className="w-48 rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-slate-100"
                         >
-                          {departments.map((department) => (
+                          {visibleDepartments.map((department) => (
                             <option key={department} value={department}>
                               {department}
                             </option>

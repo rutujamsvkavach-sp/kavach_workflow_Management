@@ -363,6 +363,26 @@ const mapRecordResponse = (row) => ({
   deletedByName: row.deletedByName || "",
 });
 
+const assertDepartmentAccess = (user, requestedDepartment) => {
+  if (user.role !== "staff") {
+    return;
+  }
+
+  const assignedDepartment = String(user.department || "").trim();
+
+  if (!assignedDepartment) {
+    const error = new Error("Your account has not been assigned to a department. Please contact an administrator.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (requestedDepartment && requestedDepartment !== assignedDepartment) {
+    const error = new Error("You can only access your assigned department.");
+    error.statusCode = 403;
+    throw error;
+  }
+};
+
 export const dataValidation = [
   body("department").trim().notEmpty().withMessage("Department is required."),
   body("title").trim().notEmpty().withMessage("Title is required."),
@@ -395,7 +415,10 @@ export const getData = async (req, res, next) => {
     const deletedOnly = req.query.deletedOnly === "true";
     const queryFilter = {};
 
-    if (department) {
+    if (req.user.role === "staff") {
+      assertDepartmentAccess(req.user, department);
+      queryFilter.department = req.user.department;
+    } else if (department) {
       queryFilter.department = department;
     }
 
@@ -513,10 +536,6 @@ export const getData = async (req, res, next) => {
       queryFilter.deletedAt = null;
     }
 
-    if (req.user.role === "staff") {
-      queryFilter.createdByUserId = req.user.id;
-    }
-
     if (queryFilter.deletedAt === undefined) {
       delete queryFilter.deletedAt;
     }
@@ -535,6 +554,8 @@ export const getData = async (req, res, next) => {
 
 export const createData = async (req, res, next) => {
   try {
+    assertDepartmentAccess(req.user, req.body.department);
+
     const record = await DepartmentRecord.create({
       department: req.body.department,
       title: req.body.title,
@@ -575,6 +596,9 @@ export const updateData = async (req, res, next) => {
       error.statusCode = 404;
       throw error;
     }
+
+    assertDepartmentAccess(req.user, existing.department);
+    assertDepartmentAccess(req.user, req.body.department);
 
     if (req.user.role !== "admin" && String(existing.createdByUserId) !== req.user.id) {
       const error = new Error("You can only update records created by you.");
@@ -623,6 +647,12 @@ export const updateData = async (req, res, next) => {
 
 export const deleteData = async (req, res, next) => {
   try {
+    if (req.user.role !== "admin") {
+      const error = new Error("Only admins can delete records.");
+      error.statusCode = 403;
+      throw error;
+    }
+
     const deleted = await DepartmentRecord.findOneAndUpdate(
       { _id: req.params.id, deletedAt: null },
       {

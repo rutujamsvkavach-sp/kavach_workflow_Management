@@ -2,11 +2,15 @@ import express from "express";
 
 import {
   approvalValidation,
+  forgotPassword,
+  forgotPasswordValidation,
   getUsers,
   login,
   loginValidation,
   register,
   registerValidation,
+  resetPassword,
+  resetPasswordValidation,
   updateUserApproval,
 } from "../controllers/authController.js";
 import { authenticate, authorizeRoles } from "../middleware/authMiddleware.js";
@@ -16,6 +20,8 @@ const router = express.Router();
 
 router.post("/register", registerValidation, validateRequest, register);
 router.post("/login", loginValidation, validateRequest, login);
+router.post("/forgot-password", forgotPasswordValidation, validateRequest, forgotPassword);
+router.post("/reset-password", resetPasswordValidation, validateRequest, resetPassword);
 router.get("/users", authenticate, authorizeRoles("admin"), getUsers);
 router.put("/users/:id/approval", authenticate, authorizeRoles("admin"), approvalValidation, validateRequest, updateUserApproval);
 

@@ -27,6 +27,7 @@ export const authenticate = async (req, _res, next) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      department: user.department || "",
       approved: user.approved,
     };
 
