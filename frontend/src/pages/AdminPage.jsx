@@ -149,7 +149,7 @@ const AdminPage = () => {
       <PageHeader
         eyebrow="Administration"
         title="Admin Control Panel"
-        description="Review registered users, approve access, and manage role assignments for the kavach_workflow Management platform."
+        description="Review registered users, approve access, and manage role assignments for the Project Management System platform."
       />
 
       {loading ? (

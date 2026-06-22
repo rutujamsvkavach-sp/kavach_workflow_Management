@@ -6,7 +6,7 @@ const NotFoundPage = () => (
       <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary/70">404</p>
       <h1 className="mt-4 font-display text-4xl text-body">Page not found</h1>
       <p className="mt-4 text-sm leading-6 text-slate-500">
-        The requested kavach_workflow Management module could not be found. Return to the dashboard to continue managing workflow records.
+        The requested Project Management System module could not be found. Return to the dashboard to continue managing workflow records.
       </p>
       <Link
         to="/"

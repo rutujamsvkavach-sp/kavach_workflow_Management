@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
       const { token: nextToken, user: nextUser } = response.data.data;
       setToken(nextToken);
       setUser(nextUser);
-      toast.success("Welcome to kavach_workflow Management.");
+      toast.success("Welcome to Project Management System.");
       addNotification({
         title: "Login successful",
         message: `${nextUser.name} signed in successfully.`,

@@ -38,7 +38,7 @@ const Sidebar = ({ open, onToggle, user }) => {
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-white/50">Secure Operations</p>
-            <h2 className="mt-1 font-display text-2xl">kavach_workflow Management</h2>
+            <h2 className="mt-1 font-display text-2xl">Project Management System</h2>
           </div>
         </div>
 

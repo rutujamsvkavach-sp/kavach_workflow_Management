@@ -1,7 +1,7 @@
 {
-  "name": "Kavach Workflow Management",
-  "short_name": "Kavach",
-  "description": "Installable Kavach workflow management system for DPR, documents, department operations, and staff coordination.",
+  "name": "Project Management System",
+  "short_name": "Project Management",
+  "description": "Installable Project Management System for DPR, documents, department operations, and staff coordination.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

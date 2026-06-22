@@ -54,7 +54,7 @@ app.use(morgan("dev"));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ success: true, message: "kavach_workflow Management API is running." });
+  res.json({ success: true, message: "Project Management System API is running." });
 });
 
 app.use("/api/auth", authRoutes);
@@ -71,7 +71,7 @@ const startServer = async () => {
   try {
     await connectDatabase();
     app.listen(port, () => {
-      console.log(`kavach_workflow Management backend listening on port ${port}`);
+      console.log(`Project Management System backend listening on port ${port}`);
     });
   } catch (error) {
     console.error("Failed to connect to MongoDB.", error);
